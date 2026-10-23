@@ -1,6 +1,7 @@
 
 # Ignore all 'reports' folders and their contents recursively
 */reports/
+*/output/
 
 # Ignore test files
 test*.xlsx
