@@ -1,5 +1,13 @@
-# Please adapt with your own dataset and values.
-# FSL indicators must be standardized with impactR4PHU before using generating the run_fsl_plaus_html_report function.
+# =============================================================================
+# FSL Plausibility Report - Mozambique MSNA 2026
+# =============================================================================
+# Este script utiliza a base pré-processada gerada pelo pipeline de Moçambique:
+#   R-scripts/moz/run.R
+# 
+# Ele carrega os dados com as variáveis já padronizadas, calcula os indicadores
+# FSL (rCSI, FCS, HHS, FCM Phase) com impactR4PHU e renderiza o relatório
+# HTML de qualidade e plausibilidade.
+# =============================================================================
 
 library(dplyr)
 library(purrr)
@@ -10,194 +18,233 @@ library(devtools)
 library(here)
 library(readxl)
 
-# install.packages("devtools")
-# devtools::install_github("impact-initiatives/impactR4PHU")
-
-
-
+# Funções utilitárias locais
 fs::dir_ls(here::here("R"), recurse = TRUE, glob = "*.R") |>
-  purrr::walk(
-    ~ source(.x)
-  )
+  purrr::walk(~ source(.x))
 
+# ---- 1. Carregar os dados processados da execução mais recente de Moçambique ----
+moz_runs <- sort(fs::dir_ls(here::here("..", "outputs", "moz"), type = "directory"))
+if (length(moz_runs) == 0) {
+  stop("Nenhuma saída encontrada em outputs/moz/.\nExecute 'source(\"R-scripts/moz/run.R\")' a partir da raiz do projeto primeiro.")
+}
+latest_run <- tail(moz_runs, 1)
+message("Carregando dados da pasta: ", latest_run)
 
-data.test <- readxl::read_xlsx(
-  here::here("fsl_quality_report", "inputs", "REACH_MOZ_Data_MSNA_01102026.xlsx"),
-  sheet = "MOZ 2026 MSNA Kobo Tool FINAL"
+data.test <- read.csv(file.path(latest_run, "Submissions.csv"), check.names = FALSE, stringsAsFactors = FALSE)
+
+# Anexar colunas de frequência do HHS a partir do raw_snapshot (posições 151, 153, 155)
+raw_snap <- readRDS(file.path(latest_run, "raw_snapshot.rds"))
+subm_raw <- raw_snap$Submissions
+
+data.test$m2755_hh_hhs_no_food_frequency       <- subm_raw[[151]]
+data.test$m2757_hh_hhs_sleep_hungry_frequency  <- subm_raw[[153]]
+data.test$m2759_hh_hhs_no_day_night_frequency  <- subm_raw[[155]]
+
+# ---- 2. Parâmetros de Agrupamento ------------------------------------------
+loop_var     <- "admin1"   # Variável para iterar os relatórios (ex.: Província)
+grouping_var <- "admin2"   # Variável de agregação no relatório (ex.: Distrito)
+uuidVar      <- "uuid"     # Identificador único do agregado
+
+# ---- 3. Garantir tipos numéricos --------------------------------------------
+num_cols <- c(
+  "fsl_rcsi_rely_on_less_expensive_food", "fsl_rcsi_borrow",
+  "fsl_rcsi_mealsize", "fsl_rcsi_mealadult", "fsl_rcsi_mealnb",
+  "m3269_hh_fcs_staples", "m3270_hh_fcs_pulses", "m3273_hh_fcs_veg",
+  "m3271_hh_fcs_dairy", "m3274_hh_fcs_fruits", "m3272_hh_fcs_protein",
+  "m3276_hh_fcs_sugar", "m3275_hh_fcs_fat"
 )
+for (col in intersect(num_cols, names(data.test))) {
+  data.test[[col]] <- suppressWarnings(as.numeric(data.test[[col]]))
+}
 
-
-table(data.test$fsl_lcsi_stress1)
-
-# Set Parameters
-
-
-loop_var <- "admin1"        # Variável para iterar os relatórios (ex.: Província)
-grouping_var <- "admin2"    # Variável secundária (ex.: Distrito ou enum_id)
-uuidVar <- "uuid"           # Identificador único do agregado
-
-# 
-
-
-# Add FSL Indicators for Plausibility
-
+# ---- 4. Cálculo dos Indicadores FSL -----------------------------------------
 data.test2 <- data.test %>%
   dplyr::select(!ends_with("_recoded")) %>%
+
+  # -- rCSI (reduced Coping Strategies Index) --
   impactR4PHU::add_rcsi(
-    fsl_rcsi_mealnb = "fsl_rcsi_mealnb",
-    fsl_rcsi_mealsize = "fsl_rcsi_mealsize",
-    fsl_rcsi_mealadult = "fsl_rcsi_mealadult",
     fsl_rcsi_lessquality = "fsl_rcsi_rely_on_less_expensive_food",
-    fsl_rcsi_borrow = "fsl_rcsi_borrow"
+    fsl_rcsi_borrow      = "fsl_rcsi_borrow",
+    fsl_rcsi_mealsize    = "fsl_rcsi_mealsize",
+    fsl_rcsi_mealadult   = "fsl_rcsi_mealadult",
+    fsl_rcsi_mealnb      = "fsl_rcsi_mealnb"
   ) %>%
+
+  # -- HHS (Household Hunger Scale) --
   impactR4PHU::add_hhs(
-    fsl_hhs_nofoodhh = "m2754_hh_hhs_no_food",
-    fsl_hhs_nofoodhh_freq = "m2755_hh_hhs_no_food_frequency",
-    fsl_hhs_sleephungry = "m2756_hh_hhs_sleep_hungry",
+    fsl_hhs_nofoodhh         = "m2754_hh_hhs_no_food",
+    fsl_hhs_nofoodhh_freq    = "m2755_hh_hhs_no_food_frequency",
+    fsl_hhs_sleephungry      = "m2756_hh_hhs_sleep_hungry",
     fsl_hhs_sleephungry_freq = "m2757_hh_hhs_sleep_hungry_frequency",
-    fsl_hhs_alldaynight = "m2758_hh_hhs_no_day_night",
+    fsl_hhs_alldaynight      = "m2758_hh_hhs_no_day_night",
     fsl_hhs_alldaynight_freq = "m2759_hh_hhs_no_day_night_frequency",
-    yes_answer = "yes",
-    no_answer = "no",
-    rarely_answer = "rarely",
-    sometimes_answer = "sometimes",
-    often_answer = "often"
+    yes_answer       = "yes",
+    no_answer        = "no",
+    rarely_answer    = "Rarely (1-2 times)",
+    sometimes_answer = "Sometimes (3-10 times)",
+    often_answer     = "Often (10+ times)"
   ) %>%
+
+  # -- FCS (Food Consumption Score) --
   impactR4PHU::add_fcs(
-    fsl_fcs_cereal = "m3269_hh_fcs_staples",
+    fsl_fcs_cereal  = "m3269_hh_fcs_staples",
     fsl_fcs_legumes = "m3270_hh_fcs_pulses",
-    fsl_fcs_veg = "m3273_hh_fcs_veg",
-    fsl_fcs_dairy = "m3271_hh_fcs_dairy",
-    fsl_fcs_fruit = "m3274_hh_fcs_fruits",
-    fsl_fcs_meat = "m3272_hh_fcs_protein",
-    fsl_fcs_sugar = "m3276_hh_fcs_sugar",
-    fsl_fcs_oil = "m3275_hh_fcs_fat",
-    cutoffs = "normal"
-  ) %>%
+    fsl_fcs_veg     = "m3273_hh_fcs_veg",
+    fsl_fcs_dairy   = "m3271_hh_fcs_dairy",
+    fsl_fcs_fruit   = "m3274_hh_fcs_fruits",
+    fsl_fcs_meat    = "m3272_hh_fcs_protein",
+    fsl_fcs_sugar   = "m3276_hh_fcs_sugar",
+    fsl_fcs_oil     = "m3275_hh_fcs_fat",
+    cutoffs         = "normal"
+  )
+
+# -- FCM Phase (Food Consumption Matrix) --
+if (!"fsl_hdds_cat" %in% names(data.test2)) {
+  data.test2$fsl_hdds_cat <- NA_character_
+}
+
+data.test2 <- data.test2 %>%
   impactR4PHU::add_fcm_phase(
-    fcs_column_name = "fsl_fcs_cat",
+    fcs_column_name  = "fsl_fcs_cat",
     rcsi_column_name = "fsl_rcsi_cat",
-    hhs_column_name = "fsl_hhs_cat_ipc",
+    hhs_column_name  = "fsl_hhs_cat_ipc",
     hdds_column_name = "fsl_hdds_cat",
-    fcs_categories_acceptable = "Acceptable",
-    fcs_categories_poor = "Poor",
-    fcs_categories_borderline = "Borderline",
-    rcsi_categories_low = "No to Low",
-    rcsi_categories_medium = "Medium",
-    rcsi_categories_high = "High",
-    hhs_categories_none = "None",
-    hhs_categories_little = "Little",
-    hhs_categories_moderate = "Moderate",
-    hhs_categories_severe = "Severe",
+    fcs_categories_acceptable  = "Acceptable",
+    fcs_categories_poor        = "Poor",
+    fcs_categories_borderline  = "Borderline",
+    rcsi_categories_low        = "No to Low",
+    rcsi_categories_medium     = "Medium",
+    rcsi_categories_high       = "High",
+    hhs_categories_none        = "None",
+    hhs_categories_little      = "Little",
+    hhs_categories_moderate    = "Moderate",
+    hhs_categories_severe      = "Severe",
     hhs_categories_very_severe = "Very Severe",
-    hdds_categories_low = "Low",
-    hdds_categories_medium = "Medium",
-    hdds_categories_high = "High"
-  ) %>%
+    hdds_categories_low        = "Low",
+    hdds_categories_medium     = "Medium",
+    hdds_categories_high       = "High"
+  )
+
+# -- LCSI (Livelihood Coping Strategies) --
+# Moçambique coletou 3 estratégias. Criamos colunas compatíveis para o Rmd:
+lcsi_required <- c(
+  paste0("fsl_lcsi_stress", 1:4),
+  paste0("fsl_lcsi_crisis", 1:3),
+  paste0("fsl_lcsi_emergency", 1:3)
+)
+moz_lcsi_map <- c(
+  fsl_lcsi_stress1 = "fsl_lcsi_send_family_members_elsewhere",
+  fsl_lcsi_stress2 = "fsl_lcsi_sell_more_reproductive_animals",
+  fsl_lcsi_crisis1 = "fsl_lcsi_reduce_expenses_on_health"
+)
+for (std_name in lcsi_required) {
+  if (std_name %in% names(moz_lcsi_map) && moz_lcsi_map[[std_name]] %in% names(data.test2)) {
+    data.test2[[std_name]] <- data.test2[[ moz_lcsi_map[[std_name]] ]]
+  } else if (!std_name %in% names(data.test2)) {
+    data.test2[[std_name]] <- "not_applicable"
+  }
+}
+
+data.test2 <- data.test2 %>%
   impactR4PHU::add_lcsi(
-    fsl_lcsi_stress1 = "fsl_lcsi_stress1",
-    fsl_lcsi_stress2 = "fsl_lcsi_stress2",
-    fsl_lcsi_stress3 = "fsl_lcsi_stress3",
-    fsl_lcsi_stress4 = "fsl_lcsi_stress4",
-    fsl_lcsi_crisis1 = "fsl_lcsi_crisis1",
-    fsl_lcsi_crisis2 = "fsl_lcsi_crisis2", 
-    fsl_lcsi_crisis3 = "fsl_lcsi_crisis3",
+    fsl_lcsi_stress1    = "fsl_lcsi_stress1",
+    fsl_lcsi_stress2    = "fsl_lcsi_stress2",
+    fsl_lcsi_stress3    = "fsl_lcsi_stress3",
+    fsl_lcsi_stress4    = "fsl_lcsi_stress4",
+    fsl_lcsi_crisis1    = "fsl_lcsi_crisis1",
+    fsl_lcsi_crisis2    = "fsl_lcsi_crisis2",
+    fsl_lcsi_crisis3    = "fsl_lcsi_crisis3",
     fsl_lcsi_emergency1 = "fsl_lcsi_emergency1",
     fsl_lcsi_emergency2 = "fsl_lcsi_emergency2",
     fsl_lcsi_emergency3 = "fsl_lcsi_emergency3",
-    yes_val = "yes",
-    no_val = "no_had_no_need",
-    exhausted_val = "no_exhausted",
-    not_applicable_val = "not_applicable"
-  ) %>%
-  dplyr::rename(
-    "fsl_lcsi_stress1" = "fsl_lcsi_stress1",
-    "fsl_lcsi_stress2" = "fsl_lcsi_stress2",
-    "fsl_lcsi_stress3" = "fsl_lcsi_stress3",
-    "fsl_lcsi_stress4" = "fsl_lcsi_stress4",
-    "fsl_lcsi_crisis1" = "fsl_lcsi_crisis1",
-    "fsl_lcsi_crisis2" = "fsl_lcsi_crisis2",
-    "fsl_lcsi_crisis3" = "fsl_lcsi_crisis3",
-    "fsl_lcsi_emergency1" = "fsl_lcsi_emergency1",
-    "fsl_lcsi_emergency2" = "fsl_lcsi_emergency2",
-    "fsl_lcsi_emergency3" = "fsl_lcsi_emergency3"
+    yes_val             = "yes",
+    no_val              = "no_had_no_need",
+    exhausted_val       = "no_exhausted",
+    not_applicable_val  = "not_applicable"
   ) %>%
   impactR4PHU::check_fsl_flags(
-    fsl_hhs_nofoodhh          = "fsl_hhs_nofoodhh",
-    fsl_hhs_nofoodhh_freq     = "fsl_hhs_nofoodhh_freq",
-    fsl_hhs_sleephungry       = "fsl_hhs_sleephungry",
-    fsl_hhs_sleephungry_freq  = "fsl_hhs_sleephungry_freq",
-    fsl_hhs_alldaynight       = "fsl_hhs_alldaynight",
-    fsl_hhs_alldaynight_freq  = "fsl_hhs_alldaynight_freq",
-    fsl_lcsi_stress           = "fsl_lcsi_stress",
-    fsl_lcsi_crisis           = "fsl_lcsi_crisis",
-    fsl_lcsi_emergency        = "fsl_lcsi_emergency",
-    fsl_lcsi_cat_yes          = "fsl_lcsi_cat_yes",
-    fsl_lcsi_cat_exhaust      = "fsl_lcsi_cat_exhaust",
-    fsl_lcsi_cat              = "fsl_lcsi_cat",
-    uuid                      = "_uuid"
+    fsl_fcs_cereal           = "m3269_hh_fcs_staples",
+    fsl_fcs_legumes          = "m3270_hh_fcs_pulses",
+    fsl_fcs_dairy            = "m3271_hh_fcs_dairy",
+    fsl_fcs_meat             = "m3272_hh_fcs_protein",
+    fsl_fcs_veg              = "m3273_hh_fcs_veg",
+    fsl_fcs_fruit            = "m3274_hh_fcs_fruits",
+    fsl_fcs_oil              = "m3275_hh_fcs_fat",
+    fsl_fcs_sugar            = "m3276_hh_fcs_sugar",
+    fsl_rcsi_lessquality     = "fsl_rcsi_rely_on_less_expensive_food",
+    fsl_rcsi_borrow          = "fsl_rcsi_borrow",
+    fsl_rcsi_mealsize        = "fsl_rcsi_mealsize",
+    fsl_rcsi_mealadult       = "fsl_rcsi_mealadult",
+    fsl_rcsi_mealnb          = "fsl_rcsi_mealnb",
+    fsl_hhs_nofoodhh         = "m2754_hh_hhs_no_food",
+    fsl_hhs_nofoodhh_freq    = "m2755_hh_hhs_no_food_frequency",
+    fsl_hhs_sleephungry      = "m2756_hh_hhs_sleep_hungry",
+    fsl_hhs_sleephungry_freq = "m2757_hh_hhs_sleep_hungry_frequency",
+    fsl_hhs_alldaynight      = "m2758_hh_hhs_no_day_night",
+    fsl_hhs_alldaynight_freq = "m2759_hh_hhs_no_day_night_frequency",
+    fsl_lcsi_stress1         = "fsl_lcsi_stress1",
+    fsl_lcsi_stress2         = "fsl_lcsi_stress2",
+    fsl_lcsi_stress3         = "fsl_lcsi_stress3",
+    fsl_lcsi_stress4         = "fsl_lcsi_stress4",
+    fsl_lcsi_crisis1         = "fsl_lcsi_crisis1",
+    fsl_lcsi_crisis2         = "fsl_lcsi_crisis2",
+    fsl_lcsi_crisis3         = "fsl_lcsi_crisis3",
+    fsl_lcsi_emergency1      = "fsl_lcsi_emergency1",
+    fsl_lcsi_emergency2      = "fsl_lcsi_emergency2",
+    fsl_lcsi_emergency3      = "fsl_lcsi_emergency3",
+    fsl_lcsi_stress          = "fsl_lcsi_stress",
+    fsl_lcsi_crisis          = "fsl_lcsi_crisis",
+    fsl_lcsi_emergency       = "fsl_lcsi_emergency",
+    fsl_lcsi_cat_yes         = "fsl_lcsi_cat_yes",
+    fsl_lcsi_cat_exhaust     = "fsl_lcsi_cat_exhaust",
+    fsl_lcsi_cat             = "fsl_lcsi_cat",
+    uuid                     = "uuid"
   )
 
-
+# ---- 5. Renderizar Relatórios HTML ------------------------------------------
 run_fsl_plaus_html_report <- function(
   .dataset = NULL,
-  uuid_var = "_uuid",
-  group_var = "enum_id",
-  output_file = "fsl_quality_report.pdf",
+  uuid_var = "uuid",
+  group_var = "admin2",
+  output_file = "fsl_quality_report.html",
   output_dir = "reports"
 ) {
-  if (is.null(.dataset)) {
-    stop("Error: 'dataset_main' must be provided.")
-  }
-  if (is.null(uuid_var)) {
-    stop("Error: 'uuid' variable must be provided.")
-  }
-  if (is.null(group_var)) {
-    stop("Error: 'group' var must be provided.")
-  }
+  if (is.null(.dataset)) stop("Erro: '.dataset' deve ser fornecido.")
+  if (is.null(uuid_var))  stop("Erro: 'uuid_var' deve ser fornecido.")
+  if (is.null(group_var)) stop("Erro: 'group_var' deve ser fornecido.")
   rmarkdown::render(
     input = here::here("fsl_quality_report", "fsl_quality_report_markdown.Rmd"),
     output_file = output_file,
-    output_dir = output_dir,
+    output_dir  = output_dir,
     params = list(
       mainData = .dataset,
-      uuidVar = uuid_var,
+      uuidVar  = uuid_var,
       GroupVar = group_var
-    ),
+    )
   )
 }
 
-
 loop_values <- unique(data.test2[[loop_var]])
-
+loop_values <- loop_values[!is.na(loop_values) & nzchar(trimws(loop_values))]
 
 reports_path <- here::here("fsl_quality_report", "reports")
 fs::dir_create(reports_path)
 
-for (i in 1:length(loop_values)) {
-  print(loop_values[[i]])
+message("Gerando relatórios para as seguintes províncias: ", paste(loop_values, collapse = ", "))
 
-  file_name <- paste0(
-    "fsl_plaus_report_",
-    loop_values[[i]],
-    "_",
-    Sys.Date(),
-    ".html"
-  )
+for (i in seq_along(loop_values)) {
+  prov <- loop_values[[i]]
+  message("-> Gerando relatório FSL para: ", prov)
 
-  data.test3 <- data.test2 %>%
-    dplyr::filter(!!sym(loop_var) == loop_values[[i]])
+  file_name <- paste0("fsl_plaus_report_", gsub("[^A-Za-z0-9_-]", "_", prov), "_", Sys.Date(), ".html")
+  data_subset <- data.test2 %>% dplyr::filter(!!sym(loop_var) == prov)
 
   run_fsl_plaus_html_report(
-    .dataset = data.test3,
-    uuid_var = uuidVar,
-    group_var = grouping_var,
-    output_dir = reports_path,
+    .dataset    = data_subset,
+    uuid_var    = uuidVar,
+    group_var   = grouping_var,
+    output_dir  = reports_path,
     output_file = file_name
   )
 }
-
-
-
-
-
+message("Relatórios FSL gerados com sucesso em: ", reports_path)
