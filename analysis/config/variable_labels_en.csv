@@ -1,0 +1,68 @@
+raw_name,label_en,category
+Sample_Size,Sample Size (N),Metadata
+admin1,Province,Geography
+admin2,District,Geography
+population_group,Population Group,Demographics
+hoh_gender,Head of Household Gender,Demographics
+gender,Child Gender,Demographics
+school_age_cat,School-Age Category,Education
+msni_in_need__mean,Households in Need (MSNI Score >= 3) (%),MSNI
+msni_in_need__count,Households in Need (Count),MSNI
+msni_in_severe_need__mean,Households in Severe Need (MSNI Score >= 4) (%),MSNI
+msni_in_severe_need__count,Households in Severe Need (Count),MSNI
+comp_foodsec_in_need__mean,Food Security LSG in Need (%),Living Standards Gaps
+comp_foodsec_in_need__count,Food Security LSG in Need (Count),Living Standards Gaps
+comp_foodsec_in_severe_need__mean,Food Security LSG in Severe Need (%),Living Standards Gaps
+comp_foodsec_in_severe_need__count,Food Security LSG in Severe Need (Count),Living Standards Gaps
+comp_wash_in_need__mean,WASH LSG in Need (%),Living Standards Gaps
+comp_wash_in_need__count,WASH LSG in Need (Count),Living Standards Gaps
+comp_wash_in_severe_need__mean,WASH LSG in Severe Need (%),Living Standards Gaps
+comp_wash_in_severe_need__count,WASH LSG in Severe Need (Count),Living Standards Gaps
+comp_edu_in_need__mean,Education LSG in Need (%),Living Standards Gaps
+comp_edu_in_need__count,Education LSG in Need (Count),Living Standards Gaps
+comp_edu_in_severe_need__mean,Education LSG in Severe Need (%),Living Standards Gaps
+comp_edu_in_severe_need__count,Education LSG in Severe Need (Count),Living Standards Gaps
+comp_health_in_need__mean,Health LSG in Need (%),Living Standards Gaps
+comp_health_in_need__count,Health LSG in Need (Count),Living Standards Gaps
+comp_health_in_severe_need__mean,Health LSG in Severe Need (%),Living Standards Gaps
+comp_health_in_severe_need__count,Health LSG in Severe Need (Count),Living Standards Gaps
+comp_snfi_in_need__mean,Shelter & NFI LSG in Need (%),Living Standards Gaps
+comp_snfi_in_need__count,Shelter & NFI LSG in Need (Count),Living Standards Gaps
+comp_snfi_in_severe_need__mean,Shelter & NFI LSG in Severe Need (%),Living Standards Gaps
+comp_snfi_in_severe_need__count,Shelter & NFI LSG in Severe Need (Count),Living Standards Gaps
+comp_prot_in_need__mean,Protection LSG in Need (%),Living Standards Gaps
+comp_prot_in_need__count,Protection LSG in Need (Count),Living Standards Gaps
+comp_prot_in_severe_need__mean,Protection LSG in Severe Need (%),Living Standards Gaps
+comp_prot_in_severe_need__count,Protection LSG in Severe Need (Count),Living Standards Gaps
+is_out_of_school__mean,Out-of-School Rate (%),Education
+is_out_of_school__count,Out-of-School Children (Count),Education
+is_overage_2plus__mean,Over-Age Attendance (>= 2 years) (%),Education
+is_overage_2plus__count,Over-Age Children (Count),Education
+ece_participation__mean,ECE Participation Rate (5-year-olds) (%),Education
+ece_participation__count,ECE Participating Children (Count),Education
+early_primary_enrolment__mean,Early Primary Enrolment (5-year-olds) (%),Education
+early_primary_enrolment__count,Early Primary Enrolled Children (Count),Education
+any_disruption__mean,Experienced Any Education Disruption (%),Education Disruption
+any_disruption__count,Children with Disruption (Count),Education Disruption
+disrupt_hazard__mean,Disruption: Natural Hazard (Floods/Cyclones) (%),Education Disruption
+disrupt_hazard__count,Disrupted by Hazard (Count),Education Disruption
+disrupt_teacher__mean,Disruption: Teacher Absence / Strikes (%),Education Disruption
+disrupt_teacher__count,Disrupted by Teacher Absence (Count),Education Disruption
+disrupt_shelter__mean,Disruption: School Used as Shelter (%),Education Disruption
+disrupt_shelter__count,Disrupted by School Shelter (Count),Education Disruption
+disrupt_attack__mean,Disruption: Direct Attack / Conflict (%),Education Disruption
+disrupt_attack__count,Disrupted by Attack / Conflict (Count),Education Disruption
+barrier_cost__mean,Barrier: Financial Costs (%),Education Barriers
+barrier_cost__count,Reporting Cost Barrier (Count),Education Barriers
+barrier_distance__mean,Barrier: Distance to School (%),Education Barriers
+barrier_distance__count,Reporting Distance Barrier (Count),Education Barriers
+barrier_safety__mean,Barrier: Insecurity / Safety on Journey (%),Education Barriers
+barrier_safety__count,Reporting Safety Barrier (Count),Education Barriers
+barrier_marriage_pregnancy__mean,Barrier: Early Marriage / Pregnancy (%),Education Barriers
+barrier_marriage_pregnancy__count,Reporting Marriage/Pregnancy Barrier (Count),Education Barriers
+barrier_documentation__mean,Barrier: Lack of Birth Certificate / Documentation (%),Education Barriers
+barrier_documentation__count,Reporting Documentation Barrier (Count),Education Barriers
+barrier_disability__mean,Barrier: Disability or Health Condition (%),Education Barriers
+barrier_disability__count,Reporting Disability Barrier (Count),Education Barriers
+barrier_closed__mean,Barrier: School is Closed (%),Education Barriers
+barrier_closed__count,Reporting Closed School Barrier (Count),Education Barriers

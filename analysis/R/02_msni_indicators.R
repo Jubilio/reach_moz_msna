@@ -1,5 +1,5 @@
 # =============================================================================
-# 02_msni_indicators.R — Sectoral Living Standards Gaps (LSGs) and MSNI Engine
+# 02_msni_indicators.R — Sectoral Living Standards Gaps & MSNI Engine (English)
 # =============================================================================
 
 suppressPackageStartupMessages({
@@ -8,17 +8,17 @@ suppressPackageStartupMessages({
   library(humind)
 })
 
-#' Calcula os compósitos setoriais (LSG) e o Multi-Sector Needs Index (MSNI)
-#' de acordo com o framework oficial do IMPACT / Humind.
+#' Computes sectoral composite indicators (LSGs) and the Multi-Sector Needs Index (MSNI)
+#' according to the official IMPACT / Humind framework.
 compute_msni_indicators <- function(main_df, health_loop, cfg) {
-  message("--> [Humind MSNI] Calculando compósitos setoriais e índice MSNI...")
+  message("--> [Humind MSNI] Computing sectoral composites and MSNI index...")
 
   x <- main_df
 
-  # 1. Segurança Alimentar (Food Security LSG) --------------------------------
-  message("    -> Compósito de Segurança Alimentar (comp_foodsec_score)...")
+  # 1. Food Security & Livelihoods (FS LSG) -----------------------------------
+  message("    -> Food Security Composite (comp_foodsec_score)...")
 
-  # Mapear e limpar FCS
+  # Map and sanitize FCS recall days
   x$fsl_fcs_cereal  <- mask_days(x$m3269_hh_fcs_staples)
   x$fsl_fcs_legumes <- mask_days(x$m3270_hh_fcs_pulses)
   x$fsl_fcs_dairy   <- mask_days(x$m3271_hh_fcs_dairy)
@@ -41,7 +41,7 @@ compute_msni_indicators <- function(main_df, health_loop, cfg) {
     cutoffs         = cfg$fsl$fcs_cutoffs
   )
 
-  # Mapear e limpar rCSI
+  # Map and sanitize rCSI recall days
   x$fsl_rcsi_lessquality <- mask_days(x$fsl_rcsi_rely_on_less_expensive_food)
   x$fsl_rcsi_borrow      <- mask_days(x$fsl_rcsi_borrow)
   x$fsl_rcsi_mealsize    <- mask_days(x$fsl_rcsi_mealsize)
@@ -57,7 +57,7 @@ compute_msni_indicators <- function(main_df, health_loop, cfg) {
     fsl_rcsi_mealnb      = "fsl_rcsi_mealnb"
   )
 
-  # Mapear e limpar HHS
+  # Map and sanitize HHS questions
   x$fsl_hhs_nofoodhh         <- as.character(x$m2754_hh_hhs_no_food)
   x$fsl_hhs_nofoodhh_freq    <- as.character(x$m2755_hh_hhs_no_food_frequency)
   x$fsl_hhs_sleephungry      <- as.character(x$m2756_hh_hhs_sleep_hungry)
@@ -80,16 +80,16 @@ compute_msni_indicators <- function(main_df, health_loop, cfg) {
     often_answer     = "Often (10+ times)"
   )
 
-  # Fase FCM (Food Consumption Matrix)
+  # Food Consumption Matrix (FCM Phase)
   if (!"fsl_hdds_cat" %in% names(x)) x$fsl_hdds_cat <- NA_character_
   x <- humind::add_fcm_phase(x)
 
-  # LCSI Moçambique
+  # Mozambique LCSI Strategies
   lcsi_map <- readr::read_csv(cfg$fsl$lcsi_mapping_path, show_col_types = FALSE)
   lcsi_cols <- intersect(lcsi_map$variable, names(x))
 
   if (length(lcsi_cols) > 0) {
-    # Calcular severidade máxima das estratégias utilizadas (código 30) ou esgotadas (20)
+    # Calculate maximum severity of strategies used in the past 30 days (code 30) or exhausted (code 20)
     lcsi_scores <- rep(0, nrow(x))
     for (i in seq_along(lcsi_cols)) {
       v <- lcsi_cols[i]
@@ -111,11 +111,10 @@ compute_msni_indicators <- function(main_df, health_loop, cfg) {
     x <- humind::add_fclcm_phase(x)
   }
 
-  # Compósito de Segurança Alimentar (comp_foodsec_score)
+  # Food Security Composite Score (comp_foodsec_score)
   if ("fclcm_phase" %in% names(x)) {
     x <- humind::add_comp_foodsec(x)
   } else {
-    # Fallback via FCM Phase caso FCLCM não esteja completo
     x$comp_foodsec_score <- dplyr::case_when(
       x$fsl_fcm_phase %in% c("Phase 4", "Phase 5") ~ 4,
       x$fsl_fcm_phase == "Phase 3" ~ 3,
@@ -127,8 +126,8 @@ compute_msni_indicators <- function(main_df, health_loop, cfg) {
     x$comp_foodsec_in_severe_need <- as.numeric(x$comp_foodsec_score >= 4)
   }
 
-  # 2. Água, Saneamento e Higiene (WASH LSG) ---------------------------------
-  message("    -> Compósito de WASH (comp_wash_score)...")
+  # 2. Water, Sanitation & Hygiene (WASH LSG) --------------------------------
+  message("    -> WASH Composite (comp_wash_score)...")
 
   if ("wash_drinking_water_source" %in% names(x)) {
     x <- humind::add_drinking_water_source_cat(x)
@@ -142,7 +141,7 @@ compute_msni_indicators <- function(main_df, health_loop, cfg) {
 
     source_cat <- x$wash_drinking_water_source_cat
 
-    # Escada JMP de Água
+    # JMP Drinking Water Ladder
     x$wash_water_jmp <- dplyr::case_when(
       source_cat == "surface_water" ~ "surface_water",
       source_cat == "unimproved"    ~ "unimproved",
@@ -151,7 +150,7 @@ compute_msni_indicators <- function(main_df, health_loop, cfg) {
       TRUE ~ "unimproved"
     )
 
-    # Escada JMP de Saneamento
+    # JMP Sanitation Ladder
     sanit <- as.character(x$wash_sanitation_facility)
     sharing <- as.character(x$wash_sanitation_facility_sharing_yn)
 
@@ -163,7 +162,7 @@ compute_msni_indicators <- function(main_df, health_loop, cfg) {
       TRUE ~ "limited"
     )
 
-    # Compósito WASH (1 a 4+)
+    # WASH Composite (1 to 4+)
     x$comp_wash_score <- dplyr::case_when(
       x$wash_water_jmp == "surface_water" | x$wash_sanitation_jmp == "open_defecation" ~ 4,
       x$wash_water_jmp %in% c("unimproved", "limited") | x$wash_sanitation_jmp == "unimproved" ~ 3,
@@ -178,8 +177,8 @@ compute_msni_indicators <- function(main_df, health_loop, cfg) {
     x$comp_wash_in_severe_need <- 0
   }
 
-  # 3. Saúde (Health LSG) ----------------------------------------------------
-  message("    -> Compósito de Saúde (comp_health_score)...")
+  # 3. Health (Health LSG) ---------------------------------------------------
+  message("    -> Health Composite (comp_health_score)...")
 
   if (!is.null(health_loop) && nrow(health_loop) > 0) {
     need <- as.character(health_loop$health_ind_healthcare_needed)
@@ -215,8 +214,8 @@ compute_msni_indicators <- function(main_df, health_loop, cfg) {
     x$comp_health_in_severe_need <- 0
   }
 
-  # 4. Abrigo e Artigos Não Alimentares (SNFI LSG) ---------------------------
-  message("    -> Compósito de Abrigo & NFI (comp_snfi_score)...")
+  # 4. Shelter & Non-Food Items (SNFI LSG) -----------------------------------
+  message("    -> Shelter & NFI Composite (comp_snfi_score)...")
 
   if ("snfi_shelter_damage" %in% names(x)) {
     dmg <- as.character(x$snfi_shelter_damage)
@@ -239,8 +238,8 @@ compute_msni_indicators <- function(main_df, health_loop, cfg) {
     x$comp_snfi_in_severe_need <- 0
   }
 
-  # 5. Proteção (Protection LSG) ----------------------------------------------
-  message("    -> Compósito de Proteção (comp_prot_score)...")
+  # 5. Protection (Protection LSG) -------------------------------------------
+  message("    -> Protection Composite (comp_prot_score)...")
 
   child_sep <- as.character(x$prot_child_sep) == "yes" | as.character(x$prot_hosting_child_sep) == "yes"
   child_labour <- to_numeric(x$prot_child_labour_n) > 0
@@ -254,17 +253,16 @@ compute_msni_indicators <- function(main_df, health_loop, cfg) {
   x$comp_prot_in_need <- as.numeric(x$comp_prot_score >= 3)
   x$comp_prot_in_severe_need <- as.numeric(x$comp_prot_score >= 4)
 
-  # 6. Garantir Compósito de Educação -----------------------------------------
+  # 6. Ensure Education Composite exists -------------------------------------
   if (!"comp_edu_score" %in% names(x)) {
     x$comp_edu_score <- 1
     x$comp_edu_in_need <- 0
     x$comp_edu_in_severe_need <- 0
   }
 
-  # 7. Cálculo Geral do Multi-Sector Needs Index (MSNI) ----------------------
-  message("    -> Agregação Global do MSNI (humind::add_msni)...")
+  # 7. Global Multi-Sector Needs Index (MSNI) Aggregation -------------------
+  message("    -> Global MSNI Aggregation (humind::add_msni)...")
 
-  # Garantir tipo numérico em todos os compósitos
   sector_cols <- c("comp_foodsec_score", "comp_snfi_score", "comp_wash_score",
                    "comp_prot_score", "comp_health_score", "comp_edu_score")
 
@@ -275,7 +273,7 @@ compute_msni_indicators <- function(main_df, health_loop, cfg) {
 
   x <- humind::add_msni(x)
 
-  # Métricas adicionais de co-ocorrência multidimensional
+  # Multi-sectoral co-occurrence (number of sectors with severity >= 3)
   in_need_cols <- c("comp_foodsec_in_need", "comp_snfi_in_need", "comp_wash_in_need",
                     "comp_prot_in_need", "comp_health_in_need", "comp_edu_in_need")
 
@@ -285,6 +283,6 @@ compute_msni_indicators <- function(main_df, health_loop, cfg) {
 
   x$msni_sectors_in_need_n <- rowSums(x[, intersect(in_need_cols, names(x))], na.rm = TRUE)
 
-  message("--> [Humind MSNI] Cálculo concluído com sucesso!")
+  message("--> [Humind MSNI] Calculation completed successfully!")
   return(x)
 }

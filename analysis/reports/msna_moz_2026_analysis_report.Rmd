@@ -1,0 +1,452 @@
+---
+title: "Mozambique Multi-Sector Needs Assessment (MSNA 2026)"
+subtitle: "Integrated Analysis Report: Multi-Sector Needs Index (MSNI) & Education Sector Assessment"
+author: "REACH Initiatives / IMPACT Initiatives"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  html_document:
+    theme: flatly
+    highlight: tango
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    number_sections: true
+    css: !expr "NULL"
+params:
+  analyzed_data: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 10,
+  fig.height = 5.5,
+  fig.align = "center"
+)
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(scales)
+library(DT)
+
+# Fetch data from params or fallback
+if (is.null(params$analyzed_data)) {
+  # Load most recent analysis RDS if not passed via params
+  rds_files <- sort(fs::dir_ls(here::here("analysis", "output"), glob = "*.rds"))
+  if (length(rds_files) > 0) {
+    analysis_data <- readRDS(tail(rds_files, 1))
+  } else {
+    stop("No analyzed data package found in analysis/output/.")
+  }
+} else {
+  analysis_data <- params$analyzed_data
+}
+
+main_df   <- analysis_data$main_with_indicators
+edu_df    <- analysis_data$edu_with_indicators
+res_tbl   <- analysis_data$tables
+nat_msni  <- res_tbl$msni$MSNI_National
+nat_edu   <- res_tbl$education$Edu_National
+```
+
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #2c3e50;
+    font-size: 14.5px;
+  }
+  .kpi-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 25px;
+  }
+  .kpi-card {
+    flex: 1 1 180px;
+    background: #ffffff;
+    border-top: 4px solid #002060;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+    border-radius: 6px;
+    padding: 16px;
+    text-align: center;
+  }
+  .kpi-card.red { border-top-color: #ee5859; }
+  .kpi-card.orange { border-top-color: #f39c12; }
+  .kpi-card.blue { border-top-color: #2980b9; }
+  .kpi-card.green { border-top-color: #27ae60; }
+  .kpi-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #002060;
+    margin-top: 6px;
+    margin-bottom: 2px;
+  }
+  .kpi-card.red .kpi-value { color: #ee5859; }
+  .kpi-card.orange .kpi-value { color: #f39c12; }
+  .kpi-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: #7f8c8d;
+    letter-spacing: 0.5px;
+  }
+  .reach-badge {
+    background-color: #002060;
+    color: #ffffff;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  h1.title {
+    color: #002060;
+    font-weight: 800;
+  }
+  h3.subtitle {
+    color: #7f8c8d;
+    margin-bottom: 20px;
+  }
+</style>
+
+---
+
+# Executive Summary
+
+The **2026 Mozambique Multi-Sector Needs Assessment (MSNA)** provides evidence-based humanitarian data on household living conditions, cross-sectoral vulnerabilities, and educational access across all 11 provinces of Mozambique.
+
+This analytical report synthesizes findings generated through standardized **IMPACT Initiatives** methodologies:
+1. **[Humind MSNI Workflow](https://impact-initiatives-hppu.github.io/humind/articles/msni-workflow.html)**: Multi-Sector Needs Index (MSNI) and Sectoral Living Standards Gaps (LSGs).
+2. **[EduAnalysisTool](https://github.com/martivit/EduAnalysisTool)**: Comprehensive individual and household-level education sector metrics.
+
+<div class="kpi-container">
+  <div class="kpi-card blue">
+    <div class="kpi-title">Households Surveyed</div>
+    <div class="kpi-value">`r format(nat_msni$Sample_Size, big.mark=",")`</div>
+    <small>All 11 Provinces</small>
+  </div>
+  <div class="kpi-card red">
+    <div class="kpi-title">In Need (MSNI &ge; 3)</div>
+    <div class="kpi-value">`r paste0(nat_msni$msni_in_need__mean, "%")`</div>
+    <small>Multisectoral Score 3+</small>
+  </div>
+  <div class="kpi-card red">
+    <div class="kpi-title">Severe Need (MSNI &ge; 4)</div>
+    <div class="kpi-value">`r paste0(nat_msni$msni_in_severe_need__mean, "%")`</div>
+    <small>Multisectoral Score 4+</small>
+  </div>
+  <div class="kpi-card orange">
+    <div class="kpi-title">School-Age Children</div>
+    <div class="kpi-value">`r format(nat_edu$Sample_Size, big.mark=",")`</div>
+    <small>Ages 5 to 17 years</small>
+  </div>
+  <div class="kpi-card green">
+    <div class="kpi-title">Out-of-School Rate</div>
+    <div class="kpi-value">`r paste0(nat_edu$is_out_of_school__mean, "%")`</div>
+    <small>Not Attending (2025/2026)</small>
+  </div>
+</div>
+
+---
+
+# Multi-Sector Needs Index (MSNI)
+
+The **Multi-Sector Needs Index (MSNI)** reflects the overall severity of acute humanitarian need at the household level. It is calculated as the maximum severity score observed across six sectoral Living Standards Gaps (LSGs):
+$$\text{MSNI} = \max(\text{LSG}_{\text{FoodSec}}, \text{LSG}_{\text{WASH}}, \text{LSG}_{\text{Edu}}, \text{LSG}_{\text{Health}}, \text{LSG}_{\text{SNFI}}, \text{LSG}_{\text{Prot}})$$
+
+Each sectoral LSG is scored on a standardized 1 to 4+ scale:
+* **Phase 1 (None)**: Living standards met without external assistance.
+* **Phase 2 (Stress)**: Moderate stress with basic coping mechanisms.
+* **Phase 3 (Crisis / In Need)**: Substantial acute Living Standards Gap.
+* **Phase 4+ (Severe / Extreme Need)**: Severe life-threatening or irreversible gaps.
+
+## MSNI Severity Distribution by Province
+
+The chart below shows the distribution of MSNI severity scores across all 11 provinces (`MZ01` to `MZ11`):
+
+```{r fig_msni_phases}
+dist_df <- res_tbl$msni_distribution
+dist_df$Score_Label <- factor(
+  paste("Phase", dist_df$msni_score),
+  levels = c("Phase 1", "Phase 2", "Phase 3", "Phase 4")
+)
+
+ggplot(dist_df, aes(x = admin1, y = Percentage, fill = Score_Label)) +
+  geom_bar(stat = "identity", position = "stack", width = 0.72) +
+  scale_fill_manual(
+    name = "MSNI Severity",
+    values = c("Phase 1" = "#2ecc71", "Phase 2" = "#f1c40f", "Phase 3" = "#e67e22", "Phase 4" = "#e74c3c")
+  ) +
+  theme_minimal(base_size = 13) +
+  labs(
+    title = "MSNI Severity Phase Distribution by Province",
+    subtitle = "Percentage of households in each MSNI Phase (1 to 4+)",
+    x = "Province (P-Code)",
+    y = "Percentage of Households (%)"
+  ) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(face = "bold", color = "#002060")
+  )
+```
+
+## Sectoral Living Standards Gaps Comparison
+
+Comparison of the percentage of households found **in need** ($\ge 3$) and **in severe need** ($\ge 4$) across the six assessed sectors:
+
+```{r fig_sectoral_lsg}
+sectors_comp <- data.frame(
+  Sector = c("Food Security", "Shelter & NFI", "WASH", "Education", "Protection", "Health"),
+  In_Need = c(
+    nat_msni$comp_foodsec_in_need__mean,
+    nat_msni$comp_snfi_in_need__mean,
+    nat_msni$comp_wash_in_need__mean,
+    nat_msni$comp_edu_in_need__mean,
+    nat_msni$comp_prot_in_need__mean,
+    nat_msni$comp_health_in_need__mean
+  ),
+  Severe_Need = c(
+    nat_msni$comp_foodsec_in_severe_need__mean,
+    nat_msni$comp_snfi_in_severe_need__mean,
+    nat_msni$comp_wash_in_severe_need__mean,
+    nat_msni$comp_edu_in_severe_need__mean,
+    nat_msni$comp_prot_in_severe_need__mean,
+    nat_msni$comp_health_in_severe_need__mean
+  )
+)
+
+sectors_long <- tidyr::pivot_longer(
+  sectors_comp,
+  cols = c("In_Need", "Severe_Need"),
+  names_to = "Severity_Type",
+  values_to = "Percentage"
+)
+sectors_long$Severity_Type <- factor(
+  sectors_long$Severity_Type,
+  levels = c("In_Need", "Severe_Need"),
+  labels = c("In Need (Score >= 3)", "Severe Need (Score >= 4)")
+)
+
+ggplot(sectors_long, aes(x = reorder(Sector, Percentage), y = Percentage, fill = Severity_Type)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.75), width = 0.7) +
+  coord_flip() +
+  scale_fill_manual(
+    name = "",
+    values = c("In Need (Score >= 3)" = "#e67e22", "Severe Need (Score >= 4)" = "#c0392b")
+  ) +
+  theme_minimal(base_size = 13) +
+  labs(
+    title = "Sectoral Needs Comparison (National Level)",
+    subtitle = "Percentage of households with Living Standards Gap (LSG) >= 3 and >= 4",
+    x = "",
+    y = "Percentage of Households (%)"
+  ) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(face = "bold", color = "#002060")
+  )
+```
+
+## Provincial MSNI Summary Table
+
+```{r tbl_msni_prov}
+tbl_msni <- res_tbl$msni$MSNI_Admin1 %>%
+  dplyr::select(
+    Province = admin1,
+    `Sample (HHs)` = Sample_Size,
+    `MSNI In Need (%)` = msni_in_need__mean,
+    `MSNI Severe (%)` = msni_in_severe_need__mean,
+    `Food Sec LSG (%)` = comp_foodsec_in_need__mean,
+    `WASH LSG (%)` = comp_wash_in_need__mean,
+    `Edu LSG (%)` = comp_edu_in_need__mean,
+    `SNFI LSG (%)` = comp_snfi_in_need__mean,
+    `Health LSG (%)` = comp_health_in_need__mean,
+    `Prot LSG (%)` = comp_prot_in_need__mean
+  )
+
+DT::datatable(
+  tbl_msni,
+  options = list(pageLength = 11, dom = "t", scrollX = TRUE),
+  rownames = FALSE,
+  class = "compact stripe hover row-border"
+) %>%
+  DT::formatStyle(
+    "MSNI In Need (%)",
+    background = styleColorBar(range(tbl_msni$`MSNI In Need (%)`), "#fadbd8"),
+    backgroundSize = "98% 80%",
+    backgroundRepeat = "no-repeat",
+    backgroundPosition = "center"
+  )
+```
+
+---
+
+# Education In-Depth Analysis (EduAnalysisTool)
+
+The analysis is conducted at the individual child level across school-age children (**5 to 17 years old**, $N = `r format(nat_edu$Sample_Size, big.mark=",")`$).
+
+## Out-of-School (OOS) Rates by Age Category and Gender
+
+Children were classified into four school-age categories aligned with the **Mozambique National Education System (SNE)**:
+* **5 years old (ECE)**: Early Childhood Education / Entry age for Primary grade 1.
+* **6 to 11 years old**: Primary School Age (Grades 1 to 6).
+* **12 to 15 years old**: Lower Secondary School Age (Grades 7 to 10).
+* **16 to 17 years old**: Upper Secondary School Age (Grades 11 to 12).
+
+```{r fig_edu_age_gender}
+age_df <- res_tbl$education$Edu_AgeCat_National %>%
+  dplyr::filter(school_age_cat != "not_school_age") %>%
+  dplyr::select(
+    school_age_cat,
+    `Out of School (%)` = is_out_of_school__mean,
+    `Over-Age Attendance (%)` = is_overage_2plus__mean,
+    `Recent Disruption (%)` = any_disruption__mean
+  )
+
+age_df$Age_Label <- dplyr::case_when(
+  age_df$school_age_cat == "5_years_ece" ~ "5 years (ECE)",
+  age_df$school_age_cat == "primary_school_age" ~ "6-11 years (Primary)",
+  age_df$school_age_cat == "lower_secondary_age" ~ "12-15 years (Lower Sec)",
+  age_df$school_age_cat == "upper_secondary_age" ~ "16-17 years (Upper Sec)",
+  TRUE ~ age_df$school_age_cat
+)
+
+age_long <- tidyr::pivot_longer(
+  age_df,
+  cols = c("Out of School (%)", "Over-Age Attendance (%)", "Recent Disruption (%)"),
+  names_to = "Metric",
+  values_to = "Percentage"
+)
+
+ggplot(age_long, aes(x = Age_Label, y = Percentage, fill = Metric)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.75), width = 0.7) +
+  scale_fill_manual(
+    name = "",
+    values = c("Out of School (%)" = "#e74c3c", "Over-Age Attendance (%)" = "#3498db", "Recent Disruption (%)" = "#f39c12")
+  ) +
+  theme_minimal(base_size = 13) +
+  labs(
+    title = "Key Education Indicators by School-Age Category",
+    subtitle = "Out-of-school, over-age attendance, and disruption rates across age brackets",
+    x = "School-Age Category",
+    y = "Percentage (%)"
+  ) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(face = "bold", color = "#002060")
+  )
+```
+
+## Over-Age Attendance & Grade Delay
+
+Over-age attendance occurs when an enrolled student is **at least two years older than the official intended age** for their grade.
+Nationally, **`r paste0(nat_edu$is_overage_2plus__mean, "%")`** of attending students are over-age, indicating cumulative learning disruption, delayed entry, or grade repetition.
+
+## Education Disruption Events
+
+Among students currently attending school, **`r paste0(nat_edu$any_disruption__mean, "%")`** experienced at least one major disruption during the school year. The breakdown by disruption event is:
+
+* **Natural Hazards (floods, cyclones, droughts)**: `r paste0(nat_edu$disrupt_hazard__mean, "%")`
+* **Teacher Absences / Strikes**: `r paste0(nat_edu$disrupt_teacher__mean, "%")`
+* **School Used as Shelter for Displaced Populations**: `r paste0(nat_edu$disrupt_shelter__mean, "%")`
+* **Direct Attack or Security Incidents**: `r paste0(nat_edu$disrupt_attack__mean, "%")`
+
+## Main Barriers Preventing Children from Attending School
+
+For children who are **out of school** (`r paste0(nat_edu$is_out_of_school__mean, "%")` of all school-age children), the reported barriers are:
+
+```{r fig_barriers}
+barriers_df <- data.frame(
+  Barrier = c(
+    "Financial Costs (fees, uniforms, materials)",
+    "Distance / Far Away",
+    "Safety / Insecurity on Journey",
+    "Early Marriage / Pregnancy",
+    "Lack of Documentation / Birth Certificate",
+    "Disability or Health Condition",
+    "School is Closed"
+  ),
+  Percentage = c(
+    nat_edu$barrier_cost__mean,
+    nat_edu$barrier_distance__mean,
+    nat_edu$barrier_safety__mean,
+    nat_edu$barrier_marriage_pregnancy__mean,
+    nat_edu$barrier_documentation__mean,
+    nat_edu$barrier_disability__mean,
+    nat_edu$barrier_closed__mean
+  )
+)
+
+ggplot(barriers_df, aes(x = reorder(Barrier, Percentage), y = Percentage)) +
+  geom_bar(stat = "identity", fill = "#34495e", width = 0.65) +
+  coord_flip() +
+  geom_text(aes(label = paste0(Percentage, "%")), hjust = -0.15, size = 3.8, fontface = "bold") +
+  theme_minimal(base_size = 13) +
+  labs(
+    title = "Reported Barriers to School Attendance",
+    subtitle = "Percentage of out-of-school children affected by each barrier",
+    x = "",
+    y = "Percentage (%)"
+  ) +
+  expand_limits(y = max(barriers_df$Percentage) * 1.15) +
+  theme(
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(face = "bold", color = "#002060")
+  )
+```
+
+---
+
+# District-Level Interactive Data Explorer
+
+Search, sort, and filter both **MSNI** and **Education** indicators for all districts (`admin2`):
+
+```{r tbl_district_explorer}
+dist_full <- res_tbl$msni$MSNI_Admin2 %>%
+  dplyr::select(
+    Province = admin1,
+    District = admin2,
+    `Sample HHs` = Sample_Size,
+    `MSNI In Need (%)` = msni_in_need__mean,
+    `MSNI Severe (%)` = msni_in_severe_need__mean,
+    `FoodSec (%)` = comp_foodsec_in_need__mean,
+    `WASH (%)` = comp_wash_in_need__mean,
+    `Edu (%)` = comp_edu_in_need__mean,
+    `SNFI (%)` = comp_snfi_in_need__mean,
+    `Prot (%)` = comp_prot_in_need__mean
+  )
+
+DT::datatable(
+  dist_full,
+  filter = "top",
+  options = list(
+    pageLength = 10,
+    autoWidth = TRUE,
+    scrollX = TRUE
+  ),
+  rownames = FALSE,
+  class = "compact stripe hover row-border"
+)
+```
+
+---
+
+# Technical & Methodological Notes
+
+1. **Analytical Framework**:
+   - The analysis adheres to the [IMPACT R Analysis Guidelines](https://github.com/impact-initiatives-hppu/humind) and [MSNI Guidance 2026](https://impact-initiatives-hppu.github.io/humind/articles/msni-workflow.html).
+   - Education metrics follow the [EduAnalysisTool](https://github.com/martivit/EduAnalysisTool) methodology.
+2. **Denominators**:
+   - Education access and disruption rates are computed over eligible school-age children (5-17 years old) with valid responses.
+   - Barriers to education are computed over out-of-school children.
+   - MSNI metrics are computed over all surveyed households.
+3. **Reproducibility**:
+   - This report is auto-generated by `analysis/run_analysis.R`.
+   - Complete analytical tables and clean datasets are archived in `analysis/output/`.

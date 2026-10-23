@@ -1,16 +1,17 @@
 # =============================================================================
-# Mozambique MSNA 2026 — Analysis Configuration
+# Mozambique MSNA 2026 — Analysis Configuration (English)
 # =============================================================================
 
 cfg <- list(
   country_code = "MOZ",
   assessment   = "MSNA 2026",
 
-  # Caminhos
+  # Directory paths
   moz_outputs_dir = here::here("outputs", "moz"),
   output_dir      = here::here("analysis", "output"),
+  reports_dir     = here::here("analysis", "reports"),
 
-  # Configurações de Educação (EduAnalysisTool & SNE Moçambique)
+  # Education Sector Settings (EduAnalysisTool & Mozambique National Curriculum - SNE)
   education = list(
     age_min = 5,
     age_max = 17,
@@ -24,17 +25,17 @@ cfg <- list(
     isced_mapping_path = here::here("analysis", "config", "moz_isced_mapping.csv")
   ),
 
-  # Configurações de Segurança Alimentar (FSL)
+  # Food Security & Livelihoods (FSL) Settings
   fsl = list(
     fcs_cutoffs = "normal", # normal: <=21 Poor, 21.5-35 Borderline, >35 Acceptable
     lcsi_mapping_path = here::here("analysis", "config", "lcsi_strategies.csv")
   ),
 
-  # Variáveis de Desagregação Padrão
+  # Standard Disaggregation Dimensions
   disaggregations = list(
-    admin1       = "admin1",
-    admin2       = "admin2",
-    disp_status  = "disp_status",
-    hoh_gender   = "hoh_gender"
+    admin1           = "admin1",
+    admin2           = "admin2",
+    population_group = "population_group",
+    hoh_gender       = "hoh_gender"
   )
 )

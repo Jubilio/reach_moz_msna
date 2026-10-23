@@ -8,14 +8,14 @@ suppressPackageStartupMessages({
   library(humind)
 })
 
-#' Processa todos os indicadores individuais e agregados de educação
-#' baseado no EduAnalysisTool (martivit/IMPACT) e no framework Humind.
+#' Computes all individual and household-level education indicators
+#' based on the EduAnalysisTool (martivit/IMPACT) and Humind framework.
 compute_education_indicators <- function(edu_loop, main_df, cfg) {
-  message("--> [EduAnalysisTool] Calculando indicadores de Educação...")
+  message("--> [EduAnalysisTool] Computing Education indicators...")
 
   x <- edu_loop
 
-  # 1. Idade e Elegibilidade Escolar -----------------------------------------
+  # 1. Age and Schooling Eligibility -----------------------------------------
   x$age <- to_numeric(x$edu_ind_age)
   x$gender <- as.character(x$edu_ind_gender)
 
@@ -24,7 +24,7 @@ compute_education_indicators <- function(edu_loop, main_df, cfg) {
 
   x$is_school_age <- !is.na(x$age) & x$age >= age_min & x$age <= age_max
 
-  # Categorias de Idade Escolar (SNE Moçambique & EduAnalysisTool)
+  # School-Age Categories (SNE Mozambique & EduAnalysisTool guidance)
   x$school_age_cat <- dplyr::case_when(
     !x$is_school_age ~ "not_school_age",
     x$age == cfg$education$ece_age ~ "5_years_ece",
@@ -34,10 +34,10 @@ compute_education_indicators <- function(edu_loop, main_df, cfg) {
     TRUE ~ NA_character_
   )
 
-  # Flag de Idade Escolar para funções do humind (1 se em idade escolar, 0 caso contrário)
+  # Schooling Age Flag for humind functions (1 if school-age, 0 otherwise)
   x$edu_ind_age_schooling <- ifelse(x$is_school_age, 1, 0)
 
-  # 2. Acesso à Educação e Crianças Fora da Escola (OOS) -----------------------
+  # 2. Access to Education and Out-of-School Children (OOS) ------------------
   x$access_raw <- as.character(x$edu_access)
   x$access_status <- dplyr::case_when(
     !x$is_school_age ~ NA_character_,
@@ -53,11 +53,11 @@ compute_education_indicators <- function(edu_loop, main_df, cfg) {
     TRUE ~ NA_real_
   )
 
-  # Flags para humind
+  # Flags for humind aggregation
   x$edu_ind_access_d    <- ifelse(x$is_school_age & x$access_raw == "yes", 1, 0)
   x$edu_ind_no_access_d <- ifelse(x$is_school_age & x$access_raw == "no", 1, 0)
 
-  # 3. Mapeamento Curricular ISCED e Sobre-Idade (Over-age) --------------------
+  # 3. ISCED Grade Mapping and Over-Age Attendance ----------------------------
   isced_map <- readr::read_csv(cfg$education$isced_mapping_path, show_col_types = FALSE)
 
   x <- x %>%
@@ -66,7 +66,7 @@ compute_education_indicators <- function(edu_loop, main_df, cfg) {
       by = c("edu_level_grade" = "code")
     )
 
-  # Sobre-idade: pelo menos 2 anos acima da idade prevista para o grau
+  # Over-age attendance: at least 2 years older than intended age for grade
   x$age_difference <- ifelse(!is.na(x$intended_age), x$age - x$intended_age, NA_real_)
   x$is_overage_2plus <- dplyr::case_when(
     x$access_status != "accessing_education" ~ NA_real_,
@@ -75,7 +75,7 @@ compute_education_indicators <- function(edu_loop, main_df, cfg) {
     TRUE ~ 0
   )
 
-  # ECE e Matrícula Precoce (crianças de 5 anos)
+  # ECE Participation & Early Primary Enrolment (5-year-old children)
   x$ece_participation <- dplyr::case_when(
     x$school_age_cat != "5_years_ece" ~ NA_real_,
     x$access_status == "accessing_education" ~ 1,
@@ -91,7 +91,7 @@ compute_education_indicators <- function(edu_loop, main_df, cfg) {
     TRUE ~ NA_real_
   )
 
-  # 4. Interrupção da Educação (Disruption Events) -----------------------------
+  # 4. Education Disruption Events --------------------------------------------
   has_col <- function(df, cname) cname %in% names(df)
 
   x$disrupt_hazard <- if (has_col(x, "edu_disruption_events/natural_hazard")) {
@@ -116,13 +116,13 @@ compute_education_indicators <- function(edu_loop, main_df, cfg) {
     NA_real_
   )
 
-  # Flags para humind
+  # Flags for humind
   x$edu_disrupted_attack_d    <- ifelse(x$access_status == "accessing_education" & x$disrupt_attack == 1, 1, 0)
   x$edu_disrupted_hazards_d   <- ifelse(x$access_status == "accessing_education" & x$disrupt_hazard == 1, 1, 0)
   x$edu_disrupted_displaced_d <- ifelse(x$access_status == "accessing_education" & x$disrupt_shelter == 1, 1, 0)
   x$edu_disrupted_teacher_d   <- ifelse(x$access_status == "accessing_education" & x$disrupt_teacher == 1, 1, 0)
 
-  # 5. Barreiras à Educação (Para Crianças Fora da Escola) --------------------
+  # 5. Barriers to Education (for Out-of-School Children) ----------------------
   x$barrier_cost <- if (has_col(x, "edu_barrier_accessing_education/lack_of_money")) {
     to_numeric(x[["edu_barrier_accessing_education/lack_of_money"]])
   } else 0
@@ -154,15 +154,15 @@ compute_education_indicators <- function(edu_loop, main_df, cfg) {
     to_numeric(x[["edu_barrier_accessing_education/school_is_closed"]])
   } else 0
 
-  # Barreira de proteção para o compósito de educação
+  # Protection barrier flag for Education composite
   x$edu_ind_barrier_protection_d <- ifelse(
     x$access_status == "out_of_school" &
       (x$barrier_safety == 1 | x$barrier_marriage_pregnancy == 1 | x$barrier_documentation == 1),
     1, 0
   )
 
-  # 6. Agregação no Nível do Agregado Familiar (Submissions) -----------------
-  message("--> [Humind] Agregando indicadores de educação para o nível do agregado...")
+  # 6. Household-Level Aggregation (Submissions) -------------------------------
+  message("--> [Humind] Aggregating education indicators to household level...")
 
   hh_edu <- x %>%
     dplyr::group_by(uuid) %>%
@@ -178,11 +178,11 @@ compute_education_indicators <- function(edu_loop, main_df, cfg) {
       .groups = "drop"
     )
 
-  # Vincular ao dataset principal (Submissions)
+  # Join back to household dataset (Submissions)
   main_df <- main_df %>%
     dplyr::left_join(hh_edu, by = "uuid")
 
-  # Preencher NAs com 0 para domicílios sem crianças elegíveis no loop
+  # Fill NAs with 0 for households with no school-age children in the loop
   main_df$edu_schooling_age_n[is.na(main_df$edu_schooling_age_n)] <- 0
   main_df$edu_access_n[is.na(main_df$edu_access_n)] <- 0
   main_df$edu_no_access_n[is.na(main_df$edu_no_access_n)] <- 0
@@ -192,11 +192,7 @@ compute_education_indicators <- function(edu_loop, main_df, cfg) {
   main_df$edu_disrupted_displaced_n[is.na(main_df$edu_disrupted_displaced_n)] <- 0
   main_df$edu_disrupted_teacher_n[is.na(main_df$edu_disrupted_teacher_n)] <- 0
 
-  # Calcular compósito de Educação do Humind
-  # comp_edu_score:
-  # 1 = Não em necessidade (todas as crianças vão à escola e sem perturbações graves)
-  # 3 = Em necessidade (pelo menos uma criança fora da escola ou com interrupção)
-  # 4 = Em necessidade severa (todas fora da escola ou barreiras de proteção)
+  # Compute Humind Education Composite (comp_edu_score: 1 to 4+)
   main_df <- humind::add_comp_edu(
     main_df,
     schooling_age_n       = "edu_schooling_age_n",

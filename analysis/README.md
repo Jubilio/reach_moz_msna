@@ -1,118 +1,110 @@
-# Módulo de Análise Integrada MSNA 2026 Moçambique
-### Educação (EduAnalysisTool) & Índice Multissetorial de Necessidades (Humind MSNI)
+# Mozambique MSNA 2026 — Integrated Analysis Module
+### Education Sector (EduAnalysisTool) & Multi-Sector Needs Index (Humind MSNI)
 
-Este módulo implementa a análise integrada da avaliação **MSNA 2026 de Moçambique**, combinando duas metodologias padronizadas da **IMPACT Initiatives / HPPU**:
-1. **[EduAnalysisTool (martivit/IMPACT)](https://github.com/martivit/EduAnalysisTool)**: Framework para análise setorial de educação no nível individual e familiar.
-2. **[Humind MSNI Workflow](https://impact-initiatives-hppu.github.io/humind/articles/msni-workflow.html)**: Framework padronizado para cálculo dos compósitos setoriais (*Living Standards Gaps* - LSG) e do Índice Multissetorial de Necessidades (*Multi-Sector Needs Index* - MSNI).
+This module implements the integrated analytical workflow for the **2026 Mozambique Multi-Sector Needs Assessment (MSNA)**, combining two core standardized methodologies from **IMPACT Initiatives / HPPU**:
+1. **[EduAnalysisTool (martivit/IMPACT)](https://github.com/martivit/EduAnalysisTool)**: Framework for education sector analysis at individual and household levels.
+2. **[Humind MSNI Workflow](https://impact-initiatives-hppu.github.io/humind/articles/msni-workflow.html)**: Standardized framework for calculating sectoral Living Standards Gaps (LSGs) and the overall Multi-Sector Needs Index (MSNI).
 
 ---
 
-## 📁 Estrutura do Módulo
+## 📁 Repository Structure
 
 ```
 analysis/
 ├── config/
-│   ├── config.R                  # Configurações do projeto, limiares e desagregações
-│   ├── moz_isced_mapping.csv     # Mapeamento do Sistema Nacional de Educação (SNE) de Moçambique
-│   └── lcsi_strategies.csv       # Mapeamento das 11 estratégias de subsistência (LCSI)
+│   ├── config.R                     # Project settings, thresholds, and disaggregation paths
+│   ├── moz_isced_mapping.csv        # Mozambique National Education System (SNE) grade mapping
+│   ├── lcsi_strategies.csv          # Mapping of 11 Livelihood Coping Strategies (LCSI)
+│   └── variable_labels_en.csv       # Dictionary mapping raw variables to human-readable English labels
 ├── R/
-│   ├── 00_utils.R                # Utilitários de carregamento automático e tratamento de dados
-│   ├── 01_edu_indicators.R       # Motor de cálculo de Educação (EduAnalysisTool & Humind)
-│   ├── 02_msni_indicators.R      # Motor de cálculo dos Compósitos Setoriais e MSNI (Humind)
-│   ├── 03_analysis_engine.R      # Motor de agregação estatística com desagregações
-│   └── 04_export_outputs.R       # Exportador para livro Excel (.xlsx) formatado e RDS
-├── run_analysis.R                # Script principal de execução (Entry point)
-├── output/                       # Diretório onde os resultados são salvos (ignorado no Git)
-└── README.md                     # Documentação técnica do módulo
+│   ├── 00_utils.R                   # Data loading helpers and English label dictionary applicator
+│   ├── 01_edu_indicators.R          # Education indicator calculation engine (EduAnalysisTool & Humind)
+│   ├── 02_msni_indicators.R         # Sectoral composites (LSG) & MSNI calculation engine (Humind)
+│   ├── 03_analysis_engine.R         # Statistical aggregation engine across disaggregation dimensions
+│   └── 04_export_outputs.R          # Export engine for formatted Excel (.xlsx), HTML report, and RDS
+├── reports/
+│   └── msna_moz_2026_analysis_report.Rmd # Interactive HTML report template (English, Bootstrap theme)
+├── run_analysis.R                   # Master execution script (single entry point)
+├── output/                          # Output deliverables directory (gitignored for data protection)
+└── README.md                        # Module documentation
 ```
 
 ---
 
-## 🧠 Indicadores e Metodologias Implementadas
+## 🧠 Methodological Framework
 
-### 1. Educação (EduAnalysisTool)
-A análise é realizada no nível individual (crianças de 5 a 17 anos da folha `edu_ind`) e agregada para o domicílio:
-- **Categorias de Idade Escolar**:
-  - `5 anos`: Pré-Escolar (ECE) / Idade de entrada na 1ª classe
-  - `6 a 11 anos`: Ensino Primário (1ª a 6ª classe)
-  - `12 a 15 anos`: Ensino Secundário 1º Ciclo (7ª a 10ª classe)
-  - `16 a 17 anos`: Ensino Secundário 2º Ciclo (11ª e 12ª classe)
-- **Acesso e Crianças Fora da Escola (OOS)**:
-  - Taxa de frequência escolar no ano letivo corrente.
-  - Taxa de crianças fora da escola (*Out-of-School Children* - OOS/OSC).
-- **Adequação Idade-Série (Sobre-Idade / Over-age)**:
-  - Crianças matriculadas que têm 2 ou mais anos acima da idade prevista para a classe em que estão matriculadas, de acordo com o mapeamento curricular oficial de Moçambique (`moz_isced_mapping.csv`).
-- **Interrupção Escolar (Disruption Events)**:
-  - Desastres naturais (ciclones, cheias, secas).
-  - Ausência de professores.
-  - Escolas ocupadas como abrigo temporário para deslocados.
-  - Conflito ou ataques diretos à educação.
-- **Barreiras ao Acesso Escolar**:
-  - Custos financeiros (propinas, uniformes, transporte, material escolar).
-  - Distância excessiva até ao estabelecimento de ensino.
-  - Insegurança / proteção no trajeto.
-  - Casamento precoce e gravidez na adolescência.
-  - Falta de certidão de nascimento / documentação civil.
-  - Deficiência ou condição de saúde.
-  - Encerramento da escola.
+### 1. Education Sector Assessment (EduAnalysisTool)
+Individual analysis is conducted over school-age children (**ages 5 to 17**, $N = 34,725$) from the `edu_ind` loop, and aggregated to the household level:
+- **School-Age Brackets**:
+  - `5 years old`: Early Childhood Education (ECE) / Entrance age for Grade 1.
+  - `6 to 11 years old`: Primary School (Grades 1 to 6).
+  - `12 to 15 years old`: Lower Secondary School (Grades 7 to 10).
+  - `16 to 17 years old`: Upper Secondary School (Grades 11 and 12).
+- **Access & Out-of-School Rates**:
+  - Current school year attendance and out-of-school (OOS / OSC) rate.
+- **Over-Age Attendance**:
+  - Enrolled students who are $\ge 2$ years older than the intended age for their grade (based on `moz_isced_mapping.csv`).
+- **Education Disruption Events**:
+  - Natural hazards (cyclones, floods, droughts).
+  - Teacher absences and strikes.
+  - Schools used as shelters for displaced populations.
+  - Direct conflict / security attacks on education.
+- **Reported Barriers to School Attendance**:
+  - Financial costs (tuition fees, uniforms, materials, transportation).
+  - Distance to school.
+  - Safety and security concerns during the journey.
+  - Early marriage and adolescent pregnancy.
+  - Lack of civil documentation / birth certificate.
+  - Disability or chronic health condition.
+  - School closure.
 
-### 2. Compósitos Setoriais (Living Standards Gaps - LSG) & MSNI (Humind)
-Cada setor recebe uma pontuação de severidade de 1 a 4+ (5):
-- **Segurança Alimentar (`comp_foodsec_score`)**:
-  - Combinação do *Food Consumption Score* (FCS), *reduced Coping Strategies Index* (rCSI), *Household Hunger Scale* (HHS) e *Livelihood Coping Strategies Index* (LCSI) via matriz FCM/FCLCM.
-- **WASH (`comp_wash_score`)**:
-  - Classificação pela escada JMP da OMS/UNICEF para fonte de água potável (Básica, Limitada, Não Melhorada, Água de Superfície) combinada com tempo de recolha, quantidade de água (<15 L/pessoa/dia) e instalações de saneamento.
-- **Educação (`comp_edu_score`)**:
-  - Presença de crianças fora da escola, interrupções graves e barreiras de proteção.
-- **Saúde (`comp_health_score`)**:
-  - Necessidade de cuidados de saúde não satisfeita (*unmet healthcare needs*) no agregado.
-- **Abrigo e Artigos Não-Alimentares (`comp_snfi_score`)**:
-  - Danos severos ou destruição do abrigo, abrigos improvisados (*makeshift*), tendas e centros coletivos.
-- **Proteção (`comp_prot_score`)**:
-  - Crianças separadas acolhidas ou ausentes, trabalho infantil e graves preocupações de violência/discriminação.
-- **Índice Multissetorial de Necessidades (`msni_score`)**:
-  - $$MSNI = \max(LSG_{\text{foodsec}}, LSG_{\text{wash}}, LSG_{\text{edu}}, LSG_{\text{health}}, LSG_{\text{snfi}}, LSG_{\text{prot}})$$
-  - **Em Necessidade (*In Need*)**: $MSNI \ge 3$
-  - **Em Necessidade Severa (*Severe Need*)**: $MSNI \ge 4$
-  - **Co-ocorrência de Necessidades**: Número de setores em que o domicílio atinge severidade $\ge 3$.
+### 2. Sectoral Living Standards Gaps & MSNI (Humind)
+Each household receives a severity score from 1 to 4+ across six humanitarian sectors:
+- **Food Security & Livelihoods (`comp_foodsec_score`)**: FCM/FCLCM matrix combining FCS, rCSI, HHS, and local LCSI strategies.
+- **WASH (`comp_wash_score`)**: WHO/UNICEF JMP ladder for drinking water, collection time, per capita volume (<15 L/person/day), and sanitation.
+- **Education (`comp_edu_score`)**: Presence of out-of-school children, severe disruptions, and protection-related barriers.
+- **Health (`comp_health_score`)**: Unmet healthcare needs within the household.
+- **Shelter & NFI (`comp_snfi_score`)**: Severe structural damage, makeshift shelters, tents, and collective centres.
+- **Protection (`comp_prot_score`)**: Separated children, child labour, and severe violence/discrimination concerns.
+- **Multi-Sector Needs Index (`msni_score`)**:
+  - $$\text{MSNI} = \max(\text{LSG}_{\text{FoodSec}}, \text{LSG}_{\text{WASH}}, \text{LSG}_{\text{Edu}}, \text{LSG}_{\text{Health}}, \text{LSG}_{\text{SNFI}}, \text{LSG}_{\text{Prot}})$$
+  - **In Need**: $\text{MSNI} \ge 3$
+  - **In Severe Need**: $\text{MSNI} \ge 4$
+  - **Co-occurrence**: Count of sectors where household is in need ($\ge 3$).
 
 ---
 
-## 📊 Planos de Desagregação Suportados
+## 📊 Disaggregation Plans
 
-Todas as tabelas de resumo são geradas automaticamente para:
-1. **Total Nacional** (`National`)
-2. **Nível Provincial** (`admin1` — 11 províncias de Moçambique: MZ01 a MZ11)
-3. **Nível Distrital** (`admin2`)
-4. **Estatuto de População / Deslocamento** (`population_group` — Deslocados internos / População acolhedora)
-5. **Género do Chefe do Domicílio** (`hoh_gender`)
-6. **Desagregações de Educação**: Cruzamento adicional por **Género da Criança** e **Categoria de Idade Escolar**.
+Summary tables are automatically produced across:
+1. **National Total** (`National`)
+2. **Provincial Level** (`admin1` — 11 provinces: `MZ01` to `MZ11`)
+3. **District Level** (`admin2`)
+4. **Population Group / Displacement Status** (`population_group` — IDPs vs. Host Community)
+5. **Head of Household Gender** (`hoh_gender`)
+6. **Cross-Tabulations for Education**: Crossed by **Child Gender** and **School-Age Bracket**.
 
 ---
 
-## 🚀 Como Executar
+## 🚀 How to Run
 
-### Pré-requisito
-Certifique-se de que os dados limpos foram gerados:
-```r
-source("R-scripts/moz/run.R")
-```
+### Option A: Inside RStudio (Recommended)
+1. Open [`analysis/run_analysis.R`](run_analysis.R).
+2. Click **Source** (or press `Ctrl + Shift + Enter`).
 
-### Execução via RStudio
-1. Abra o arquivo [analysis/run_analysis.R](file:///c:/Users/IMPACT%20-%20DBO/ACTED(1)/IMPACT%20MOZ%20-%20Documentos/General/2_Research/7_MSNA_2026/2_Data/2_Data_cleaning/MSNA_cleaning/analysis/run_analysis.R).
-2. Clique no botão **Source** (ou pressione `Ctrl + Shift + Enter`).
-
-### Execução via Terminal / PowerShell
+### Option B: Command Line / PowerShell
 ```powershell
 & "C:\Program Files\R\R-4.6.0\bin\Rscript.exe" "analysis\run_analysis.R"
 ```
 
 ---
 
-## 📈 Saídas Geradas
+## 📦 Output Deliverables
 
-Os arquivos são gerados na pasta `analysis/output/`:
-- **Livro Excel (.xlsx)**: `MSNA_2026_MOZ_Analysis_Results_<timestamp>.xlsx`
-  - Contém abas formatadas para cada plano de desagregação (Nacional, Província, Distrito, Deslocamento, Género, Fases do MSNI, e tabelas de Educação).
-- **Pacote RDS (.rds)**: `MSNA_2026_MOZ_Analyzed_Data_<timestamp>.rds`
-  - Contém as bases completas enriquecidas com todos os novos indicadores calculados e tabelas prontas para relatórios ou visualização GIS.
+All deliverables are saved in `analysis/output/`:
+1. **Interactive HTML Report**: `MSNA_2026_MOZ_Analysis_Report_<timestamp>.html`
+   - Self-contained report with executive KPI cards, ggplot figures, and searchable DT datatables in English.
+2. **Formatted Excel Workbook**: `MSNA_2026_MOZ_Analysis_Results_<timestamp>.xlsx`
+   - Formatted worksheets with human-readable English headers and a `Variable_Dictionary` reference tab.
+3. **Enriched RDS Dataset**: `MSNA_2026_MOZ_Analyzed_Data_<timestamp>.rds`
+   - Contains complete datasets with all computed indicators for GIS mapping and advanced statistical modeling.

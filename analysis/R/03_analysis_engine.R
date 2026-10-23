@@ -1,5 +1,5 @@
 # =============================================================================
-# 03_analysis_engine.R — Aggregation & Statistical Analysis Engine
+# 03_analysis_engine.R — Aggregation & Statistical Analysis Engine (English)
 # =============================================================================
 
 suppressPackageStartupMessages({
@@ -7,12 +7,12 @@ suppressPackageStartupMessages({
   library(tidyr)
 })
 
-#' Função genérica para calcular proporções e médias agregadas por grupos de desagregação
+#' Computes mean percentages and positive counts for target indicators across specified disaggregation groups
 calculate_summary_table <- function(df, target_vars, group_vars = NULL, label_group = "Total") {
   df_sub <- df
 
   if (!is.null(group_vars) && length(group_vars) > 0) {
-    # Filtrar NAs nos grupos de agrupamento
+    # Filter NAs in grouping dimensions
     for (gv in group_vars) {
       if (gv %in% names(df_sub)) {
         df_sub <- df_sub[!is.na(df_sub[[gv]]) & nzchar(trimws(as.character(df_sub[[gv]]))), ]
@@ -21,7 +21,6 @@ calculate_summary_table <- function(df, target_vars, group_vars = NULL, label_gr
     grouped_df <- df_sub %>% dplyr::group_by(dplyr::across(dplyr::all_of(group_vars)))
   } else {
     grouped_df <- df_sub %>% dplyr::mutate(Disaggregation = label_group) %>% dplyr::group_by(Disaggregation)
-    group_vars <- "Disaggregation"
   }
 
   summary_res <- grouped_df %>%
@@ -41,9 +40,9 @@ calculate_summary_table <- function(df, target_vars, group_vars = NULL, label_gr
   return(summary_res)
 }
 
-#' Executa a análise completa de Educação e MSNI sobre todas as desagregações
+#' Executes full Education and MSNI analysis across all standard disaggregation dimensions
 run_full_analysis <- function(edu_loop, main_df, cfg) {
-  message("--> [Analysis Engine] Gerando tabelas analíticas com desagregações...")
+  message("--> [Analysis Engine] Generating summary tables across disaggregations...")
 
   pop_group_col <- if ("population_group" %in% names(main_df)) "population_group" else if ("disp_status" %in% names(main_df)) "disp_status" else NULL
 
@@ -56,7 +55,7 @@ run_full_analysis <- function(edu_loop, main_df, cfg) {
   )
   disagg_list <- disagg_list[!sapply(disagg_list, is.null)]
 
-  # 1. Análise de Educação (Nível Individual) ---------------------------------
+  # 1. Education Analysis (Individual Child Level: ages 5-17) -----------------
   edu_school_age <- edu_loop %>% dplyr::filter(is_school_age == TRUE)
 
   edu_target_vars <- c(
@@ -66,7 +65,7 @@ run_full_analysis <- function(edu_loop, main_df, cfg) {
     "barrier_documentation", "barrier_disability", "barrier_closed"
   )
 
-  # Adicionar variáveis de desagregação de Submissions para edu_loop se ausentes
+  # Attach household-level disaggregation keys to edu_loop if missing
   candidate_disagg <- c("admin1", "admin2", pop_group_col, "hoh_gender")
   available_disagg <- intersect(candidate_disagg, names(main_df))
   join_cols <- setdiff(available_disagg, names(edu_school_age))
@@ -89,7 +88,7 @@ run_full_analysis <- function(edu_loop, main_df, cfg) {
       label_group = dname
     )
 
-    # Desagregação cruzada adicional por género da criança
+    # Disaggregation crossed by Child Gender
     edu_results[[paste0("Edu_Gender_", dname)]] <- calculate_summary_table(
       df = edu_school_age,
       target_vars = edu_target_vars,
@@ -97,7 +96,7 @@ run_full_analysis <- function(edu_loop, main_df, cfg) {
       label_group = paste0(dname, " by Gender")
     )
 
-    # Desagregação cruzada adicional por categoria de idade escolar
+    # Disaggregation crossed by School-Age Category
     edu_results[[paste0("Edu_AgeCat_", dname)]] <- calculate_summary_table(
       df = edu_school_age,
       target_vars = edu_target_vars,
@@ -106,7 +105,7 @@ run_full_analysis <- function(edu_loop, main_df, cfg) {
     )
   }
 
-  # 2. Análise de MSNI & Compósitos Setoriais (Nível Agregado Familiar) ------
+  # 2. MSNI & Sectoral LSG Analysis (Household Level) ------------------------
   msni_target_vars <- c(
     "msni_in_need", "msni_in_severe_need",
     "comp_foodsec_in_need", "comp_foodsec_in_severe_need",
@@ -128,13 +127,13 @@ run_full_analysis <- function(edu_loop, main_df, cfg) {
     )
   }
 
-  # Tabela de Distribuição das Fases do MSNI (% Fase 1, 2, 3, 4+)
+  # MSNI Severity Phase Distribution by Province (% Phase 1, Phase 2, Phase 3, Phase 4+)
   msni_dist <- main_df %>%
     dplyr::group_by(admin1, msni_score) %>%
     dplyr::summarise(Count = dplyr::n(), .groups = "drop_last") %>%
     dplyr::mutate(Percentage = round(Count / sum(Count) * 100, 1))
 
-  message("--> [Analysis Engine] Tabelas analíticas calculadas com sucesso!")
+  message("--> [Analysis Engine] Summary tables calculated successfully!")
   return(list(
     education = edu_results,
     msni = msni_results,
