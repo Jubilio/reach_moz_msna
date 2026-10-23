@@ -47,16 +47,16 @@ data.test2 <- data.test %>%
     fsl_rcsi_mealnb = "fsl_rcsi_mealnb",
     fsl_rcsi_mealsize = "fsl_rcsi_mealsize",
     fsl_rcsi_mealadult = "fsl_rcsi_mealadult",
-    fsl_rcsi_lessquality = "fsl_rcsi_lessquality",
+    fsl_rcsi_lessquality = "fsl_rcsi_rely_on_less_expensive_food",
     fsl_rcsi_borrow = "fsl_rcsi_borrow"
   ) %>%
   impactR4PHU::add_hhs(
-    fsl_hhs_nofoodhh = "fsl_hhs_nofoodhh",
-    fsl_hhs_nofoodhh_freq = "fsl_hhs_nofoodhh_freq",
-    fsl_hhs_sleephungry = "fsl_hhs_sleephungry",
-    fsl_hhs_sleephungry_freq = "fsl_hhs_sleephungry_freq",
-    fsl_hhs_alldaynight = "fsl_hhs_alldaynight",
-    fsl_hhs_alldaynight_freq = "fsl_hhs_alldaynight_freq",
+    fsl_hhs_nofoodhh = "m2754_hh_hhs_no_food",
+    fsl_hhs_nofoodhh_freq = "m2755_hh_hhs_no_food_frequency",
+    fsl_hhs_sleephungry = "m2756_hh_hhs_sleep_hungry",
+    fsl_hhs_sleephungry_freq = "m2757_hh_hhs_sleep_hungry_frequency",
+    fsl_hhs_alldaynight = "m2758_hh_hhs_no_day_night",
+    fsl_hhs_alldaynight_freq = "m2759_hh_hhs_no_day_night_frequency",
     yes_answer = "yes",
     no_answer = "no",
     rarely_answer = "rarely",
@@ -64,14 +64,14 @@ data.test2 <- data.test %>%
     often_answer = "often"
   ) %>%
   impactR4PHU::add_fcs(
-    fsl_fcs_cereal = "fsl_fcs_cereal",
-    fsl_fcs_legumes = "fsl_fcs_legumes",
-    fsl_fcs_veg = "fsl_fcs_veg",
-    fsl_fcs_dairy = "fsl_fcs_dairy",
-    fsl_fcs_fruit = "fsl_fcs_fruit",
-    fsl_fcs_meat = "fsl_fcs_meat",
-    fsl_fcs_sugar = "fsl_fcs_sugar",
-    fsl_fcs_oil = "fsl_fcs_oil",
+    fsl_fcs_cereal = "m3269_hh_fcs_staples",
+    fsl_fcs_legumes = "m3270_hh_fcs_pulses",
+    fsl_fcs_veg = "m3273_hh_fcs_veg",
+    fsl_fcs_dairy = "m3271_hh_fcs_dairy",
+    fsl_fcs_fruit = "m3274_hh_fcs_fruits",
+    fsl_fcs_meat = "m3272_hh_fcs_protein",
+    fsl_fcs_sugar = "m3276_hh_fcs_sugar",
+    fsl_fcs_oil = "m3275_hh_fcs_fat",
     cutoffs = "normal"
   ) %>%
   impactR4PHU::add_fcm_phase(
