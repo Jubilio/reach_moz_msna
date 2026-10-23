@@ -7,6 +7,8 @@ library(fs)
 library(scales)
 library(openxlsx)
 library(devtools)
+library(here)
+library(readxl)
 
 # install.packages("devtools")
 # devtools::install_github("impact-initiatives/impactR4PHU")
@@ -20,15 +22,9 @@ fs::dir_ls(here::here("R"), recurse = TRUE, glob = "*.R") |>
 
 
 data.test <- readxl::read_xlsx(
-  here::here(
-    "fsl_quality_report",
-    "inputs",
-    "REACH_UGA_Dataset_MSNA- October-2026_kampala_data.xlsx"
-  ),
-  sheet = "clean_main"
+  here::here("fsl_quality_report", "inputs", "REACH_MOZ_Data_MSNA_01102026.xlsx"),
+  sheet = "MOZ 2026 MSNA Kobo Tool FINAL"
 )
-
-
 
 
 table(data.test$fsl_lcsi_stress1)
@@ -36,9 +32,9 @@ table(data.test$fsl_lcsi_stress1)
 # Set Parameters
 
 
-loop_var <- "hoh_type"
-grouping_var <- "admin2"
-uuidVar <- "_uuid"
+loop_var <- "admin1"        # Variável para iterar os relatórios (ex.: Província)
+grouping_var <- "admin2"    # Variável secundária (ex.: Distrito ou enum_id)
+uuidVar <- "uuid"           # Identificador único do agregado
 
 # 
 
