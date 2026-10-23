@@ -123,33 +123,37 @@ This analytical report synthesizes findings generated through standardized **IMP
 1. **[Humind MSNI Workflow](https://impact-initiatives-hppu.github.io/humind/articles/msni-workflow.html)**: Multi-Sector Needs Index (MSNI) and Sectoral Living Standards Gaps (LSGs).
 2. **[EduAnalysisTool](https://github.com/martivit/EduAnalysisTool)**: Comprehensive individual and household-level education sector metrics.
 
+```{r kpi_cards, results='asis'}
+cat('
 <div class="kpi-container">
   <div class="kpi-card blue">
     <div class="kpi-title">Households Surveyed</div>
-    <div class="kpi-value">`r format(nat_msni$Sample_Size, big.mark=",")`</div>
+    <div class="kpi-value">', format(nat_msni$Sample_Size, big.mark = ","), '</div>
     <small>All 11 Provinces</small>
   </div>
   <div class="kpi-card red">
     <div class="kpi-title">In Need (MSNI &ge; 3)</div>
-    <div class="kpi-value">`r paste0(nat_msni$msni_in_need__mean, "%")`</div>
+    <div class="kpi-value">', paste0(nat_msni$msni_in_need__mean, "%"), '</div>
     <small>Multisectoral Score 3+</small>
   </div>
   <div class="kpi-card red">
     <div class="kpi-title">Severe Need (MSNI &ge; 4)</div>
-    <div class="kpi-value">`r paste0(nat_msni$msni_in_severe_need__mean, "%")`</div>
+    <div class="kpi-value">', paste0(nat_msni$msni_in_severe_need__mean, "%"), '</div>
     <small>Multisectoral Score 4+</small>
   </div>
   <div class="kpi-card orange">
     <div class="kpi-title">School-Age Children</div>
-    <div class="kpi-value">`r format(nat_edu$Sample_Size, big.mark=",")`</div>
+    <div class="kpi-value">', format(nat_edu$Sample_Size, big.mark = ","), '</div>
     <small>Ages 5 to 17 years</small>
   </div>
   <div class="kpi-card green">
     <div class="kpi-title">Out-of-School Rate</div>
-    <div class="kpi-value">`r paste0(nat_edu$is_out_of_school__mean, "%")`</div>
+    <div class="kpi-value">', paste0(nat_edu$is_out_of_school__mean, "%"), '</div>
     <small>Not Attending (2025/2026)</small>
   </div>
 </div>
+', sep = "")
+```
 
 ---
 

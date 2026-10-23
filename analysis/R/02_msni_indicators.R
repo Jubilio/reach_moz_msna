@@ -127,48 +127,214 @@ compute_msni_indicators <- function(main_df, health_loop, cfg) {
   }
 
   # 2. Water, Sanitation & Hygiene (WASH LSG) --------------------------------
+  #    Uses the full official humind WASH function chain.
+  #    IMPORTANT: skipped_drinking_water_source_premises reflects the
+
+  #    Mozambique Kobo skip logic for wash_drinking_water_time_yn.
+  #    Sources skipped because they are on premises:
+  #      piped_dwelling, piped_compound, piped_neighbour
+  #    Sources skipped for other reasons (dnk/pnta) are handled by
+  #      skipped_drinking_water_source_undefined.
   message("    -> WASH Composite (comp_wash_score)...")
 
   if ("wash_drinking_water_source" %in% names(x)) {
+
+    # --- 2a. Drinking Water Source Category (improved / unimproved / surface_water) ---
     x <- humind::add_drinking_water_source_cat(x)
 
-    tc <- to_numeric(x$wash_drinking_water_time_int)
-    time_cat <- dplyr::case_when(
-      is.na(tc) ~ "under_30min",
-      tc <= 30  ~ "under_30min",
-      tc > 30   ~ "above_30min"
+    # --- 2b. Drinking Water Collection Time Category ---
+    #  The Mozambique questionnaire does not export wash_drinking_water_time_yn;
+    #  the skip logic hides it for on-premises and dnk/pnta sources.
+    #  We reconstruct it from wash_drinking_water_source so that
+    #  humind::add_drinking_water_time_cat() can properly classify on-premises
+    #  sources as "premises" (not "undefined"), preventing denominator shifts.
+    on_premises_sources <- c("piped_dwelling", "piped_compound", "piped_neighbour")
+    undefined_sources   <- c("dnk", "pnta")
+
+    src_val <- as.character(x$wash_drinking_water_source)
+    # The valid values for wash_drinking_water_time_yn are:
+    #   water_on_premises values (water_in_dwelling, water_in_plot),
+    #   the number_minutes column name (meaning: use numeric minutes),
+    #   dnk, and undefined (pnta).
+    x$wash_drinking_water_time_yn <- dplyr::case_when(
+      src_val %in% on_premises_sources ~ "water_in_dwelling",
+      src_val %in% undefined_sources   ~ "pnta",
+      TRUE                             ~ "wash_drinking_water_time_int"
     )
 
-    source_cat <- x$wash_drinking_water_source_cat
+    # Ensure wash_drinking_water_time_int is numeric and named correctly
+    x$wash_drinking_water_time_int <- to_numeric(x$wash_drinking_water_time_int)
 
-    # JMP Drinking Water Ladder
-    x$wash_water_jmp <- dplyr::case_when(
-      source_cat == "surface_water" ~ "surface_water",
-      source_cat == "unimproved"    ~ "unimproved",
-      source_cat == "improved" & time_cat == "above_30min" ~ "limited",
-      source_cat == "improved" & time_cat == "under_30min" ~ "basic",
-      TRUE ~ "unimproved"
+    # Pre-create placeholder columns that add_drinking_water_time_cat checks
+    # for existence before it runs (it writes to these columns as output).
+    if (!"wash_drinking_water_time_sl" %in% names(x))
+      x$wash_drinking_water_time_sl <- NA_character_
+
+    x <- humind::add_drinking_water_time_cat(
+      x,
+      drinking_water_time_yn  = "wash_drinking_water_time_yn",
+      water_on_premises       = c("water_in_dwelling", "water_in_plot"),
+      number_minutes          = "wash_drinking_water_time_int",
+      dnk                     = "dnk",
+      undefined               = "pnta",
+      drinking_water_time_int = "wash_drinking_water_time_int",
+      max_minutes             = 600,
+      drinking_water_time_sl  = "wash_drinking_water_time_sl",
+      drinking_water_source   = "wash_drinking_water_source",
+      skipped_drinking_water_source_premises = c("piped_dwelling", "piped_compound", "piped_neighbour"),
+      skipped_drinking_water_source_undefined = c("dnk", "pnta")
     )
 
-    # JMP Sanitation Ladder
-    sanit <- as.character(x$wash_sanitation_facility)
-    sharing <- as.character(x$wash_sanitation_facility_sharing_yn)
-
-    x$wash_sanitation_jmp <- dplyr::case_when(
-      sanit %in% c("none", "open_defecation", "bush") ~ "open_defecation",
-      sanit %in% c("unimproved_pit_latrine", "hanging_toilet", "bucket") ~ "unimproved",
-      sharing == "yes" ~ "limited",
-      sharing == "no"  ~ "basic",
-      TRUE ~ "limited"
+    # Convert 3-category time (under_30_min / 30min_1hr / more_than_1hr) into
+    # the 2-category threshold (under_30min / above_30min) needed by JMP quality
+    x <- humind::add_drinking_water_time_threshold_cat(
+      x,
+      drinking_water_time_30min_cat              = "wash_drinking_water_time_cat",
+      drinking_water_time_30min_cat_premises     = "premises",
+      drinking_water_time_30min_cat_under_30min  = "under_30_min",
+      drinking_water_time_30min_cat_above_30min  = c("30min_1hr", "more_than_1hr"),
+      drinking_water_time_30min_cat_undefined    = "undefined"
     )
 
-    # WASH Composite (1 to 4+)
-    x$comp_wash_score <- dplyr::case_when(
-      x$wash_water_jmp == "surface_water" | x$wash_sanitation_jmp == "open_defecation" ~ 4,
-      x$wash_water_jmp %in% c("unimproved", "limited") | x$wash_sanitation_jmp == "unimproved" ~ 3,
-      x$wash_sanitation_jmp == "limited" ~ 2,
-      TRUE ~ 1
+    # --- 2c. Drinking Water Quality JMP Ladder ---
+    x <- humind::add_drinking_water_quality_jmp_cat(x)
+
+    # --- 2d. Sanitation: categorise facility, sharing, JMP ladder ---
+    x <- humind::add_sanitation_facility_cat(
+      x,
+      sanitation_facility = "wash_sanitation_facility",
+      improved    = c("flush_latrine", "pit_latrine_slab", "improved_pit_latrine",
+                       "pit_latrine_with_chair", "chair_adapted_for_pwd"),
+      unimproved  = c("pit_latrine_wo_slab", "open_hole", "emergency_communal_latrine"),
+      none        = c("none", "open_defecation"),
+      undefined   = c("other", "dnk", "pnta")
     )
+
+    x <- humind::add_sharing_sanitation_facility_cat(
+      x,
+      sharing_sanitation_facility = "wash_sanitation_facility_sharing_yn",
+      yes       = "yes",
+      no        = "no",
+      undefined = c("dnk", "pnta"),
+      sanitation_facility         = "wash_sanitation_facility",
+      skipped_sanitation_facility = c("none", "open_defecation")
+    )
+
+    x <- humind::add_sanitation_facility_jmp_cat(x)
+
+    # --- 2e. Sharing Sanitation Facility N Individuals ---
+    if ("wash_sanitation_facility_sharing_n" %in% names(x)) {
+      # add_sharing_sanitation_facility_n_ind requires a weight column
+      if (!"weight" %in% names(x)) x$weight <- 1
+      # Ensure required columns are numeric
+      x$wash_sanitation_facility_sharing_n <- to_numeric(x$wash_sanitation_facility_sharing_n)
+      x$hh_size <- to_numeric(x$hh_size)
+      x <- humind::add_sharing_sanitation_facility_n_ind(
+        x,
+        sanitation_facility_sharing_n = "wash_sanitation_facility_sharing_n",
+        hh_size = "hh_size",
+        weight  = "weight"
+      )
+    } else {
+      x$wash_sharing_sanitation_facility_n_ind <- "19_and_below"
+    }
+
+    # --- 2f. Handwashing Facility JMP Cat ---
+    #  Mozambique survey is in-person with observed water and soap type columns.
+    #  We map the observed columns to what humind expects.
+    if (all(c("wash_handwashing_facility_observed_water",
+              "wash_handwashing_facility_observed_soap") %in% names(x))) {
+
+      # Create the survey_modality column (all in-person)
+      x$survey_modality <- "in_person"
+
+      # Map the observed soap column to soap_type (humind expects wash_soap_observed_type)
+      x$wash_soap_observed_type <- as.character(x$wash_handwashing_facility_observed_soap)
+
+      # Create the handwashing facility availability column
+      # If water was observed at all, a facility exists
+      x$wash_handwashing_facility <- dplyr::case_when(
+        is.na(x$wash_handwashing_facility_observed_water) ~ "none",
+        TRUE ~ "available_fixed_in_dwelling"
+      )
+
+      # Rename observed water column to expected name
+      x$wash_handwashing_facility_observed_water_yn <- as.character(
+        x$wash_handwashing_facility_observed_water
+      )
+
+      # Map soap observed column to soap_observed_yn (availability yes/no)
+      x$wash_soap_observed_yn <- dplyr::case_when(
+        x$wash_soap_observed_type %in% c("soap", "detergent", "ash_mud_sand") ~ "soap_available",
+        x$wash_soap_observed_type %in% c("not_available") ~ "soap_not_available",
+        TRUE ~ "soap_not_available"
+      )
+
+      # Create placeholder columns for remote-survey variants that
+      # add_handwashing_facility_cat always checks for existence
+      if (!"wash_handwashing_facility_reported" %in% names(x))
+        x$wash_handwashing_facility_reported <- NA_character_
+      if (!"wash_handwashing_facility_water_reported_yn" %in% names(x))
+        x$wash_handwashing_facility_water_reported_yn <- NA_character_
+      if (!"wash_soap_reported_yn" %in% names(x))
+        x$wash_soap_reported_yn <- NA_character_
+      if (!"wash_soap_reported_type" %in% names(x))
+        x$wash_soap_reported_type <- NA_character_
+
+      x <- humind::add_handwashing_facility_cat(
+        x,
+        survey_modality            = "survey_modality",
+        survey_modality_in_person  = "in_person",
+        facility                   = "wash_handwashing_facility",
+        facility_yes               = c("available_fixed_in_dwelling", "available_fixed_in_plot", "available_mobile"),
+        facility_no                = "none",
+        facility_observed_water    = "wash_handwashing_facility_observed_water_yn",
+        facility_observed_water_yes = "water_available",
+        facility_observed_water_no  = "water_not_available",
+        facility_observed_soap     = "wash_soap_observed_yn",
+        facility_observed_soap_yes = "soap_available",
+        facility_observed_soap_no  = "soap_not_available",
+        soap_type_observed         = "wash_soap_observed_type",
+        soap_type_observed_yes     = c("soap", "detergent"),
+        soap_type_observed_no      = c("ash_mud_sand"),
+        soap_type_observed_undefined = c("dnk", "pnta", "other", "not_available")
+      )
+    } else {
+      x$wash_handwashing_facility_jmp_cat <- "undefined"
+    }
+
+    # --- 2g. Water Quantity Score (HWISE-4) ---
+    #  No HWISE questions in Mozambique MSNA 2026; use a proxy from
+    #  wash_drinking_water_quantity if available.
+    if ("wash_drinking_water_quantity" %in% names(x)) {
+      wq <- as.character(x$wash_drinking_water_quantity)
+      x$comp_wash_score_water_quantity <- dplyr::case_when(
+        wq %in% c("never_available", "rarely_available") ~ 4L,
+        wq == "sometimes_available"   ~ 3L,
+        wq == "often_available"       ~ 2L,
+        wq == "always_available"      ~ 1L,
+        TRUE                          ~ 1L
+      )
+    } else {
+      x$comp_wash_score_water_quantity <- 1L
+    }
+
+    # --- 2h. WASH Composite via humind::add_comp_wash() ---
+    #  Map the setting values to what humind expects
+    x$setting_original <- x$setting
+    x$setting <- dplyr::case_when(
+      x$setting %in% c("camp_formal", "camp_informal") ~ x$setting,
+      x$setting %in% c("urban", "peri_urban") ~ "urban",
+      x$setting == "rural"  ~ "rural",
+      TRUE                  ~ "rural"
+    )
+
+    x <- humind::add_comp_wash(x)
+
+    # Restore original setting
+    x$setting <- x$setting_original
+    x$setting_original <- NULL
+
     x$comp_wash_in_need <- as.numeric(x$comp_wash_score >= 3)
     x$comp_wash_in_severe_need <- as.numeric(x$comp_wash_score >= 4)
   } else {
