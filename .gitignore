@@ -7,5 +7,7 @@
 /inputs/*.xlsx
 /inputs/feedback/
 /outputs/
+/analysis/output/
 /upload/
+README.html
 *.rds

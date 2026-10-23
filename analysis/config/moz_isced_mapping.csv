@@ -1,0 +1,14 @@
+code,cycle,intended_age,label_en,label_pt
+kindergarten,ece,5,Kindergarten,Pré-Escolar
+grade_1,primary,6,Primary grade 1,Ensino Primário 1ª classe
+grade_2,primary,7,Primary grade 2,Ensino Primário 2ª classe
+grade_3,primary,8,Primary grade 3,Ensino Primário 3ª classe
+grade_4,primary,9,Primary grade 4,Ensino Primário 4ª classe
+grade_5,primary,10,Primary grade 5,Ensino Primário 5ª classe
+grade_6,primary,11,Primary grade 6,Ensino Primário 6ª classe
+grade_7,lower_secondary,12,Secondary grade 7,Ensino Secundário 7ª classe
+grade_8,lower_secondary,13,Secondary grade 8,Ensino Secundário 8ª classe
+grade_9,lower_secondary,14,Secondary First Cycle grade 9,Ensino Secundário 9ª classe
+grade_10,lower_secondary,15,Secondary First Cycle grade 10,Ensino Secundário 10ª classe
+grade_11,upper_secondary,16,Secondary Second Cycle grade 11,Ensino Secundário 11ª classe
+grade_12,upper_secondary,17,Secondary Second Cycle grade 12,Ensino Secundário 12ª classe
