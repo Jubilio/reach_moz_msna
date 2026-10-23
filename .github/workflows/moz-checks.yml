@@ -1,0 +1,20 @@
+name: Mozambique cleaning checks
+on:
+  push:
+    paths: ['R-scripts/moz/**', 'config/moz.R', 'tests/test_moz.R', '.github/workflows/moz-checks.yml']
+  pull_request:
+    paths: ['R-scripts/moz/**', 'config/moz.R', 'tests/test_moz.R', '.github/workflows/moz-checks.yml']
+permissions:
+  contents: read
+jobs:
+  helpers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+      - name: Parse entry point and test mapping and correction guards
+        run: |
+          Rscript -e "parse('R-scripts/moz/run.R'); parse('config/moz.R')"
+          Rscript tests/test_moz.R
