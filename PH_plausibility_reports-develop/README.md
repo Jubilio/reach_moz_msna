@@ -79,12 +79,13 @@ Instead, you run the corresponding script to generate the HTML report. For examp
 3. Adjust the parameters at the top of the script (e.g., file name, sheet name, variables)
 4. Run the script — output goes to `muac_quality_report/output/reports/`
 
-### FSL
+### FSL (Adaptado para Moçambique MSNA 2026)
 
-Same steps using:
+O script `fsl_quality_report/standalone_fsl_quality_html_report.R` foi adaptado para consumir diretamente os dados limpos do pipeline de Moçambique:
 
-- Script: `fsl_quality_report/standalone_fsl_quality_html_report.R`
-- Input folder: `fsl_quality_report/inputs/`
+1. Execute primeiro o pipeline de limpeza na raiz: `source("R-scripts/moz/run.R")`
+2. Abra `fsl_quality_report/standalone_fsl_quality_html_report.R` no RStudio e clique em **Source** (ou execute via Rscript).
+3. O script carrega automaticamente a pasta mais recente em `outputs/moz/`, mapeia os indicadores FSL (FCS, rCSI, HHS, LCSI) e gera os relatórios por província em `fsl_quality_report/reports/`.
 
 ### Mortality
 
