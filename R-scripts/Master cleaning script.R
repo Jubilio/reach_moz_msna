@@ -1,5 +1,5 @@
 # =================================================================================================
-# REACH MSNA 2026 Uganda - Master cleaning script
+# REACH MSNA 2026 Mozambique - Master cleaning script
 # =================================================================================================
 
 rm(list = ls())
@@ -41,19 +41,19 @@ source("R-scripts/Source scripts/Data cleaning - My functions.R")
 folders <- c("inputs", "inputs/feedback", "outputs", "R-scripts", "R-scripts/Source scripts", "archive")
 for (folder in folders) if (!fs::dir_exists(folder)) fs::dir_create(folder)
 
-path_cleaning_folder_today <- file.path("outputs", paste0("MSNA2026 Uganda data cleaning ", format(Sys.Date(), format = "%Y-%b-%d")))
+path_cleaning_folder_today <- file.path("outputs", paste0("MSNA2026 Mozambique data cleaning ", format(Sys.Date(), format = "%Y-%b-%d")))
 if (!fs::dir_exists(path_cleaning_folder_today)) fs::dir_create(path_cleaning_folder_today)
 
 # ---- Input paths: edit only these if your file names differ ----
-path_tool   <- "inputs/REACH_MSNA2026_uganda_Kobo_final_1_08_sept_2026.xlsx"
+path_tool   <- "inputs/kobo-used.xlsx"
 
 # withouth kampala
-# path_data   <- "inputs/REACH_MSNA2026_uganda_Kobo_form_-_all_versions_-_False_-_2026-09-21-08-19-51.xlsx"
+# path_data   <- "inputs/REACH_MOZ_MSNA2026_Kobo_form_-_all_versions_-_False_-_2026-09-21-08-19-51.xlsx"
 
-path_data   <- "inputs/REACH_MSNA2026_uganda_Kobo_form_-_all_versions_-_False_-_2026-10-05-06-13-42.xlsx"
+path_data   <- "inputs/REACH_MOZ_MSNA2026_Kobo_form_-_all_versions_-_False_-_2026-10-05-06-13-42.xlsx"
 
 
-path_checks <- "inputs/REACH_MSNA2026_uganda_logical_checks.xlsx"
+path_checks <- "inputs/logical_checks.xlsx"
 
 
 # Optional: string pattern for test submissions to remove. Set to NULL to keep all submissions.
@@ -62,7 +62,7 @@ test_submission_user_pattern <- NULL
 # Cleaning-log review file(s) should be placed in inputs/feedback/ after the assessment team completes review.
 # The scripts will load every .xlsx file in inputs/feedback/ that contains a cleaning_log/combined_log sheet.
 
-# print_step("Starting REACH MSNA 2026 Uganda cleaning pipeline")
+# print_step("Starting REACH MSNA 2026 Mozambique cleaning pipeline")
 
 
 # 1. Load and process raw Kobo export sheets
@@ -147,5 +147,5 @@ source('R-scripts/Source scripts/Loading cleaning log data.R')
 # source("R-scripts/Source scripts/9. Remove the unnecessary variables.R")
 # source("R-scripts/Source scripts/10.Export the logbook.R")
 # 
-# print_step("MSNA 2026 Uganda cleaning pipeline completed")
+# print_step("MSNA 2026 Mozambique cleaning pipeline completed")
 # getwd()

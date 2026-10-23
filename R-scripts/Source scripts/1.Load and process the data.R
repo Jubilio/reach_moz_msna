@@ -6,11 +6,11 @@ all_lists_names_before <- Filter(function(x) is(x, "list"), mget(ls())) |> names
 print_step("1. Loading Kobo export, XLSForm, and logical checks")
 
 # ==================================================================================================
-# REACH MSNA 2026 Uganda - 1. Load and process the data
+# REACH MSNA 2026 Mozambique - 1. Load and process the data
 # Updated for the real Kobo server export structure.
 #
 # Real Kobo export sheets expected:
-#   - REACH_MSNA2026_uganda_Kobo_form  -> internal dataset: Submissions
+#   - REACH_MOZ_MSNA2026_Kobo_form  -> internal dataset: Submissions
 #   - roster                           -> internal dataset: roster
 #   - edu_ind                          -> internal dataset: edu_ind
 #   - health_ind                       -> internal dataset: health_ind
@@ -750,7 +750,7 @@ expected_datasets <- c(
 
 main_sheet <- find_export_sheet(
   candidates = c(
-    "REACH_MSNA2026_uganda_Kobo_form",
+    "REACH_MOZ_MSNA2026_Kobo_form",
     "Submissions",
     "submissions",
     "survey",
@@ -1030,7 +1030,7 @@ xlsform_numeric_vars <- df_survey_clean |>
   as.character() |>
   unique()
 
-# These are calculate fields in the final Uganda XLSForm but are numerically defined.
+# These are calculate fields in the final Mozambique XLSForm but are numerically defined.
 # They are indexed-repeat copies of numeric roster fields and are exported by Kobo as text.
 numeric_calculate_vars <- c(
   "edu_ind_age",
@@ -1113,7 +1113,7 @@ if (nrow(numeric_conversion_issues) > 0) {
 }
 
 # --------------------------------------------------------------------------------------------------
-# 4. Apply HumInd/MSNA derived-variable functions that are applicable to the final Uganda XLSForm
+# 4. Apply HumInd/MSNA derived-variable functions that are applicable to the final Mozambique XLSForm
 # --------------------------------------------------------------------------------------------------
 # NOTE:
 # - Package functions are called directly; their source definitions are not repeated here.
@@ -1217,7 +1217,7 @@ if (nrow(data_roster) > 0 && all(wgq_required %in% names(data_roster))) {
 # --------------------------------------------------------------------------------------------------
 # 4.3 Education repeat and household education composite
 # --------------------------------------------------------------------------------------------------
-# The final Uganda XLSForm already calculates edu_ind_age_schooling from the roster.
+# The final Mozambique XLSForm already calculates edu_ind_age_schooling from the roster.
 # We therefore use that field directly rather than re-running age correction with a generic
 # school-year start month.
 
@@ -1252,7 +1252,7 @@ if (nrow(data_edu_ind) > 0 && all(edu_required %in% names(data_edu_ind))) {
     )
   
   # Protection-related education barriers.
-  # edu_barrier is select_multiple in the Uganda tool, while the package individual-level
+  # edu_barrier is select_multiple in the Mozambique tool, while the package individual-level
   # recoder expects one value. Use the repaired split columns to derive the dummy safely.
   edu_protection_choices <- c(
     "protection_at_school",
@@ -1280,7 +1280,7 @@ if (nrow(data_edu_ind) > 0 && all(edu_required %in% names(data_edu_ind))) {
       )
   }
   
-  # Disruption indicators. The Uganda tool has hazards, teacher absence and displacement,
+  # Disruption indicators. The Mozambique tool has hazards, teacher absence and displacement,
   # but no separate attack item, so attack is excluded at this stage.
   data_edu_ind <- add_loop_edu_disrupted_d(
     df = data_edu_ind,
@@ -1407,7 +1407,7 @@ if (all(hwise_required %in% names(data_hh_main))) {
 }
 
 # Drinking-water source classification.
-# The Uganda tool includes a shaduf response not represented in the package's standard source
+# The Mozambique tool includes a shaduf response not represented in the package's standard source
 # list. It is conservatively treated as undefined here rather than assigning a JMP service level
 # without a confirmed methodological mapping.
 if ("wash_drinking_water_source" %in% names(data_hh_main)) {
@@ -1421,7 +1421,7 @@ if ("wash_drinking_water_source" %in% names(data_hh_main)) {
 }
 
 # Reconcile water collection time. The package's current add_drinking_water_time_cat() source
-# collapses the three <30 minute choice codes through match.arg(), so the Uganda categories are
+# collapses the three <30 minute choice codes through match.arg(), so the Mozambique categories are
 # normalized explicitly before using the package threshold/JMP functions.
 water_time_required <- c(
   "wash_drinking_water_source",
@@ -1472,7 +1472,7 @@ if (all(sanitation_required %in% names(data_hh_main))) {
 }
 
 # Handwashing JMP category.
-# The Uganda XLSForm has no modality question and is structured as an in-person observation tool.
+# The Mozambique XLSForm has no modality question and is structured as an in-person observation tool.
 # A constant modality variable is therefore added solely for compatibility with the package API;
 # the function itself still switches to reported data when observation permission was not granted.
 handwashing_required <- c(
@@ -1624,7 +1624,7 @@ if (all(prot_required %in% names(data_hh_main))) {
 # --------------------------------------------------------------------------------------------------
 # 4.9 Cash/markets expenditure preparation and top-3 expenditure ranking
 # --------------------------------------------------------------------------------------------------
-# The Uganda tool has an expanded set of expenditure categories compared with the package's
+# The Mozambique tool has an expanded set of expenditure categories compared with the package's
 # proportion helpers. Zeroing and top-3 ranking accept custom vectors and are therefore used;
 # the fixed-category proportion functions are intentionally not used here.
 
@@ -1697,7 +1697,7 @@ if (all(c("cm_expenditure_infrequent", infreq_expenditure_vars) %in% names(data_
 # - add_received_assistance(): the final tool has aap_received_assistance_12m but no assistance-date field.
 # - add_barriers_assistance_any(): no aap_barriers_assistance variable in the final tool.
 # - income-source functions: only total income is collected; source-specific income amounts are absent.
-# - expenditure proportion functions: the Uganda expenditure modules have expanded/custom categories.
+# - expenditure proportion functions: the Mozambique expenditure modules have expanded/custom categories.
 # - add_quantile_interval(): should be run after the final survey weight is available.
 # - add_sharing_sanitation_facility_n_ind(): requires the survey weight.
 # - add_comp_wash(): depends on the weighted sanitation-sharing indicator above.

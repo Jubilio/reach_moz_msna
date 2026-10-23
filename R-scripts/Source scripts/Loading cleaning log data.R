@@ -5,13 +5,13 @@ message("═══════════════════════�
 
 output_path
 # =============================================================================
-# MSNA 2026 Uganda - Load & combine cleaning logs
+# MSNA 2026 Mozambique - Load & combine cleaning logs
 # -----------------------------------------------------------------------------
 # 1. Loads the two "Specify other" cleaning logs separately
 #      -> Cleaning_log_specify_others_1, Cleaning_log_specify_others_2
 # 2. Loops through every daily folder > "District cleaning logs" > district
 #    folders, reads the "cleaning_log" sheet of each
-#    "Cleaning_log_MSNA2026_Uganda_*.xlsx" file, keeps only non-empty logs and
+#    "Cleaning_log_MSNA2026_Mozambique_*.xlsx" file, keeps only non-empty logs and
 #    appends them into one main cleaning log -> Cleaning_log_main
 # 3. Exports the three logs to Excel
 # =============================================================================
@@ -243,7 +243,7 @@ message("  Columns: ", ncol(Cleaning_log_specify_others))
 message("\n--- Loading Daily District Cleaning Logs ---")
 
 day_folders <- list.dirs(daily_logs_path, recursive = FALSE)
-day_folders <- day_folders[grepl("MSNA2026 Uganda data cleaning", basename(day_folders), ignore.case = TRUE)]
+day_folders <- day_folders[grepl("MSNA2026 Mozambique data cleaning", basename(day_folders), ignore.case = TRUE)]
 day_folders <- sort(day_folders)
 
 message("Daily folders found: ", length(day_folders))

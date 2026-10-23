@@ -1,7 +1,7 @@
 cat("\014")
 
 # =================================================================================================
-# REACH MSNA 2026 Uganda - Save Shiny App Input Cache
+# REACH MSNA 2026 Mozambique - Save Shiny App Input Cache
 # Purpose: Save all data objects already loaded in the R environment into the Shiny app inputs folder.
 #
 # This script DOES NOT run the data collection tracker and DOES NOT export Excel.
@@ -15,7 +15,7 @@ cat("\014")
 #   source("R-scripts/Source scripts/Save Shiny app data cache.R")
 #
 # Before sourcing this script, set path_shiny_app_folder if your Shiny folder has a different name:
-#   path_shiny_inputs_folder <- "C:/Users/Administrator/Documents/UG tasks/01_data_cleaning/MSN_U/MSNA_cleaning/MSNA2026_Uganda_Field_Tracker_Shiny/inputs"
+#   path_shiny_inputs_folder <- "C:/Users/Administrator/Documents/MOZ tasks/01_data_cleaning/MSN_U/MSNA_cleaning/MSNA2026_Mozambique_Field_Tracker_Shiny/inputs"
 # =================================================================================================
 
 all_dfs_names_before <- Filter(function(x) is(x, "data.frame"), mget(ls())) |> names()
@@ -175,24 +175,24 @@ resolve_shiny_inputs_folder <- function() {
   }
 
   # Priority 4: your stated Windows Shiny inputs folder.
-  windows_inputs <- "C:/Users/Administrator/Documents/UG tasks/01_data_cleaning/MSN_U/MSNA_cleaning/MSNA2026_Uganda_Field_Tracker_Shiny/inputs"
+  windows_inputs <- "C:/Users/Administrator/Documents/MOZ tasks/01_data_cleaning/MSN_U/MSNA_cleaning/MSNA2026_Mozambique_Field_Tracker_Shiny/inputs"
   if (dir.exists(dirname(windows_inputs)) || dir.exists(windows_inputs)) {
     return(windows_inputs)
   }
 
   # Priority 5: common local folder names inside the current project folder.
   candidates <- c(
-    "MSNA2026_Uganda_Field_Tracker_Shiny",
-    "MSNA2026_Uganda_Field_Tracker_Shiny_cached",
-    "MSNA2026_Uganda_Field_Tracker_Shiny_env_filters",
-    "MSNA2026_Uganda_Field_Tracker_Shiny_v4_field_team",
-    "MSNA2026_Uganda_Field_Tracker_Shiny_v3_standard"
+    "MSNA2026_Mozambique_Field_Tracker_Shiny",
+    "MSNA2026_Mozambique_Field_Tracker_Shiny_cached",
+    "MSNA2026_Mozambique_Field_Tracker_Shiny_env_filters",
+    "MSNA2026_Mozambique_Field_Tracker_Shiny_v4_field_team",
+    "MSNA2026_Mozambique_Field_Tracker_Shiny_v3_standard"
   )
   existing <- candidates[dir.exists(candidates)]
   if (length(existing) > 0) return(file.path(existing[[1]], "inputs"))
 
   # If nothing is found, use the standard local Shiny folder name and create inputs under it.
-  file.path("MSNA2026_Uganda_Field_Tracker_Shiny", "inputs")
+  file.path("MSNA2026_Mozambique_Field_Tracker_Shiny", "inputs")
 }
 
 # -------------------------------------------------------------------------------------------------
@@ -210,7 +210,7 @@ if (!dir.exists(path_shiny_inputs_cache)) {
   stop(
     "The Shiny inputs folder could not be created or found: ", path_shiny_inputs_cache, "\n",
     "Set it explicitly before running this script, for example:\n",
-    "path_shiny_inputs_folder <- 'C:/Users/Administrator/Documents/UG tasks/01_data_cleaning/MSN_U/MSNA_cleaning/MSNA2026_Uganda_Field_Tracker_Shiny/inputs'\n",
+    "path_shiny_inputs_folder <- 'C:/Users/Administrator/Documents/MOZ tasks/01_data_cleaning/MSN_U/MSNA_cleaning/MSNA2026_Mozambique_Field_Tracker_Shiny/inputs'\n",
     "source('R-scripts/Source scripts/Save Shiny app data cache.R')",
     call. = FALSE
   )

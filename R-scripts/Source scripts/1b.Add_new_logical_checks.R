@@ -1,7 +1,7 @@
 cat("\014")
 
 # =================================================================================================
-# REACH MSNA 2026 Uganda - 1b. Supplementary logical checks (tool-validated, genuinely new)
+# REACH MSNA 2026 Mozambique - 1b. Supplementary logical checks (tool-validated, genuinely new)
 # -------------------------------------------------------------------------------------------------
 # Purpose:
 #   Adds logical checks that are NOT already enforced by the XLSForm's constraint or relevant
@@ -46,7 +46,7 @@ new_check <- function(dataset, check_id, description, check_to_perform, columns_
 # 1. NEW HOUSEHOLD-LEVEL (Submissions) CHECKS
 # ==================================================================================================
 # Justification notes are included for each check. All checks below were verified to NOT be
-# covered by constraint / relevant / required in the final Uganda XLSForm.
+# covered by constraint / relevant / required in the final Mozambique XLSForm.
 
 new_checks_household <- dplyr::bind_rows(
 

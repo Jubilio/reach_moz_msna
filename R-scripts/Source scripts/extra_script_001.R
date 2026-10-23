@@ -4,7 +4,7 @@
 # PART 2: Daily district cleaning logs -> one main cleaning log
 # =============================================================================
 day_folders <- list.dirs(daily_logs_path, recursive = FALSE)
-day_folders <- day_folders[grepl("MSNA2026 Uganda data cleaning", basename(day_folders), ignore.case = TRUE)]
+day_folders <- day_folders[grepl("MSNA2026 Mozambique data cleaning", basename(day_folders), ignore.case = TRUE)]
 message("\nDaily folders found: ", length(day_folders))
 
 log_summary <- list()
@@ -25,7 +25,7 @@ for (day_folder in day_folders) {
   
   for (district_folder in district_folders) {
     district <- basename(district_folder)
-    files <- list_excel(district_folder, pattern = "^Cleaning_log_MSNA2026_Uganda_.*\\.xlsx?$")
+    files <- list_excel(district_folder, pattern = "^Cleaning_log_MSNA2026_Mozambique_.*\\.xlsx?$")
     
     for (f in files) {
       df <- tryCatch(read_cleaning_log(f, cols_main), error = function(e) {

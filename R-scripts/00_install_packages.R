@@ -1,4 +1,4 @@
-# Install required packages for REACH MSNA 2026 Uganda cleaning pipeline
+# Install required packages for REACH MSNA 2026 Mozambique cleaning pipeline
 required_packages <- c("tidyverse", "readxl", "openxlsx", "writexl", "lubridate", "fs", "crayon", "janitor", "stringr", "purrr", "rlang", "tidyselect", "naniar")
 optional_packages <- c("cleaningtools", "humind")
 missing_required <- required_packages[!vapply(required_packages, requireNamespace, logical(1), quietly = TRUE)]

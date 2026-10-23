@@ -1,7 +1,7 @@
 cat("\014")
 
 # ==================================================================================================
-# REACH MSNA 2026 Uganda - 7. Target progress and daily-rate tracker
+# REACH MSNA 2026 Mozambique - 7. Target progress and daily-rate tracker
 # Version: vector-safe rates + README guide sheet
 # --------------------------------------------------------------------------------------------------
 # Purpose:
@@ -722,7 +722,7 @@ wb <- openxlsx::createWorkbook()
 # Dashboard sheet.
 openxlsx::addWorksheet(wb, "Dashboard")
 
-openxlsx::writeData(wb, "Dashboard", "MSNA 2026 Uganda - Target progress and daily-rate tracker", startRow = 1, startCol = 1)
+openxlsx::writeData(wb, "Dashboard", "MSNA 2026 Mozambique - Target progress and daily-rate tracker", startRow = 1, startCol = 1)
 openxlsx::writeData(wb, "Dashboard", paste0("Created: ", Sys.time()), startRow = 2, startCol = 1)
 openxlsx::writeData(wb, "Dashboard", paste0("Data source: ", tracker_data_source), startRow = 3, startCol = 1)
 

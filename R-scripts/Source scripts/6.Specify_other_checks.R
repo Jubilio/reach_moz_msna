@@ -1,7 +1,7 @@
 cat("\014")
 
 # =================================================================================================
-# REACH MSNA 2026 Uganda - 6. Specify-other checks and conversion log
+# REACH MSNA 2026 Mozambique - 6. Specify-other checks and conversion log
 # -------------------------------------------------------------------------------------------------
 # Purpose:
 #   - Create a separate cleaning log for all filled "specify other" variables in the final Kobo tool.
@@ -144,7 +144,7 @@ first_existing_col <- function(df, candidates) {
 standardise_dataset_name <- function(x) {
   x <- as.character(x)
   dplyr::case_when(
-    x %in% c("Submissions", "household", "household_level", "data_hh_main", "REACH_MSNA2026_uganda_Kobo_form") ~ "Submissions",
+    x %in% c("Submissions", "household", "household_level", "data_hh_main", "REACH_MOZ_MSNA2026_Kobo_form") ~ "Submissions",
     x %in% c("roster", "data_hh_roster", "data_roster") ~ "roster",
     x %in% c("edu_ind", "education_ind", "data_edu_ind") ~ "edu_ind",
     x %in% c("health_ind", "data_health_ind") ~ "health_ind",

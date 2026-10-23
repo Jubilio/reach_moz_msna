@@ -1,11 +1,11 @@
 cat("\014")
 
 # ==================================================================================================
-# REACH MSNA 2026 Uganda - 7. Generate AO quality-check analysis
+# REACH MSNA 2026 Mozambique - 7. Generate AO quality-check analysis
 # ==================================================================================================
 # PURPOSE
-#   Reproduce the indicator requests in "Uganda_MSNA_Quality Checks_AOs.xlsx" using the FINAL
-#   Uganda 2026 Kobo XLSForm and the processed datasets created by the existing cleaning pipeline.
+#   Reproduce the indicator requests in "MSNA_Quality_Checks_AOs.xlsx" using the FINAL
+#   Mozambique 2026 Kobo XLSForm and the processed datasets created by the existing cleaning pipeline.
 #
 # RECOMMENDED RUN POSITION
 #   Run after Script 4 ("4.Process the CLs and DFs...") so checked_datasets_by_dataset is available.
@@ -53,7 +53,7 @@ for (pkg in required_packages) {
 # --------------------------------------------------------------------------------------------------
 
 path_analysis_request <- 
-  "C:/Users/Administrator/Documents/UG tasks/01_data_cleaning/MSN_U/MSNA_cleaning/inputs/Uganda_MSNA_Quality Checks_AOs.xlsx"
+  "C:/Users/Administrator/Documents/MOZ tasks/01_data_cleaning/MSN_U/MSNA_cleaning/inputs/MSNA_Quality_Checks_AOs.xlsx"
 
 
 
@@ -65,27 +65,27 @@ first_existing_file <- function(paths) {
 
 if (!exists("path_analysis_request")) {
   path_analysis_request <- first_existing_file(c(
-    "inputs/Uganda_MSNA_Quality Checks_AOs.xlsx",
-    "Uganda_MSNA_Quality Checks_AOs.xlsx"
+    "inputs/MSNA_Quality_Checks_AOs.xlsx",
+    "MSNA_Quality_Checks_AOs.xlsx"
   ))
 }
 
 if (is.na(path_analysis_request) || !file.exists(path_analysis_request)) {
   stop(
-    "AO analysis request workbook not found. Set path_analysis_request to Uganda_MSNA_Quality Checks_AOs.xlsx.",
+    "AO analysis request workbook not found. Set path_analysis_request to MSNA_Quality_Checks_AOs.xlsx.",
     call. = FALSE
   )
 }
 
 if (!exists("path_tool")) {
   path_tool <- first_existing_file(c(
-    "inputs/REACH_MSNA2026_uganda_Kobo_final_1_14_aug_2026.xlsx",
-    "REACH_MSNA2026_uganda_Kobo_final_1_14_aug_2026.xlsx"
+    "inputs/kobo-used.xlsx",
+    "kobo-used.xlsx"
   ))
 }
 
 if (is.na(path_tool) || !file.exists(path_tool)) {
-  stop("Final Kobo XLSForm not found. Set path_tool to the final Uganda 2026 XLSForm.", call. = FALSE)
+  stop("Final Kobo XLSForm not found. Set path_tool to the final Mozambique 2026 XLSForm.", call. = FALSE)
 }
 
 if (!exists("path_analysis_output")) {
@@ -97,7 +97,7 @@ if (!exists("path_analysis_output")) {
   if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
   path_analysis_output <- file.path(
     output_dir,
-    paste0("Uganda_MSNA_Quality_Checks_AOs_RESULTS_", format(Sys.Date(), "%Y%m%d"), ".xlsx")
+    paste0("MSNA_Quality_Checks_AOs_RESULTS_", format(Sys.Date(), "%Y%m%d"), ".xlsx")
   )
 }
 
@@ -114,7 +114,7 @@ ao_request <- readxl::read_xlsx(
 if (nrow(ao_request) != 63) {
   warning(
     "The supplied AO request currently has ", nrow(ao_request),
-    " indicator rows; this script was mapped to the 63-row version supplied for Uganda MSNA 2026."
+    " indicator rows; this script was mapped to the 63-row version supplied for Mozambique MSNA 2026."
   )
 }
 

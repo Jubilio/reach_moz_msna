@@ -1,5 +1,5 @@
 # =============================================================================
-# UGA2603 – Uganda MSNU 2026 – Sampling weights
+# MOZ2603 – Mozambique MSNA 2026 – Sampling weights
 # =============================================================================
 # Strata (ToR):  refugees       -> settlement (14)
 #                host community -> district   (12)
@@ -251,7 +251,7 @@ clean_child_protection_ind<-clean_child_protection_w
 
 
 # Save
-write.csv(weights_tbl, "UGA2603_MSNU_2026_weights_kampala.csv", row.names = FALSE)
+write.csv(weights_tbl, "MOZ2603_MSNU_2026_weights_kampala.csv", row.names = FALSE)
 
 # Count of interviews by hoh_type x strata
 cat("\n\nCount of interviews by hoh_type x strata:\n")

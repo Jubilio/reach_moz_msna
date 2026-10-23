@@ -1,5 +1,5 @@
 # =================================================================================================
-# REACH MSNA 2026 Uganda - 1b. Outlier Detection Helper Functions
+# REACH MSNA 2026 Mozambique - 1b. Outlier Detection Helper Functions
 # -------------------------------------------------------------------------------------------------
 # Purpose:
 #   Provides utility functions for detecting outliers in continuous variables and interview duration.

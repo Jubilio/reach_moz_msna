@@ -1,7 +1,7 @@
 cat("\014")
 
 # =================================================================================================
-# Generate MSNA 2026 Uganda Field Data Collection Tracker - RMarkdown report
+# Generate MSNA 2026 Mozambique Field Data Collection Tracker - RMarkdown report
 # -------------------------------------------------------------------------------------------------
 # This script should be sourced from the master cleaning script after scripts 1-5 have created:
 #   - raw_data_list / data_hh_main
@@ -12,9 +12,9 @@ cat("\014")
 # =================================================================================================
 
 if (exists("print_step", mode = "function")) {
-  print_step("Generating MSNA 2026 Uganda field data collection tracker RMarkdown report")
+  print_step("Generating MSNA 2026 Mozambique field data collection tracker RMarkdown report")
 } else {
-  message("Generating MSNA 2026 Uganda field data collection tracker RMarkdown report")
+  message("Generating MSNA 2026 Mozambique field data collection tracker RMarkdown report")
 }
 
 if (!requireNamespace("rmarkdown", quietly = TRUE)) {
@@ -24,7 +24,7 @@ if (!requireNamespace("rmarkdown", quietly = TRUE)) {
 if (!exists("path_cleaning_folder_today")) {
   path_cleaning_folder_today <- file.path(
     "outputs",
-    paste0("MSNA2026 Uganda data cleaning ", format(Sys.Date(), format = "%Y-%b-%d"))
+    paste0("MSNA2026 Mozambique data cleaning ", format(Sys.Date(), format = "%Y-%b-%d"))
   )
 }
 
@@ -51,7 +51,7 @@ if (is.na(tracker_rmd_path)) {
 }
 
 tracker_output_file <- paste0(
-  "MSNA2026_Uganda_Field_Data_Collection_Tracker_",
+  "MSNA2026_Mozambique_Field_Data_Collection_Tracker_",
   format(Sys.Date(), "%Y_%m_%d"),
   ".html"
 )

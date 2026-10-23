@@ -1,7 +1,7 @@
 cat("\014")
 
 # =================================================================================================
-# REACH MSNA 2026 Uganda - District-level field data collection tracker
+# REACH MSNA 2026 Mozambique - District-level field data collection tracker
 # FINAL-TOOL-VARIABLES VERSION
 # Purpose: Export a clear Excel tracker with ONE SHEET PER DISTRICT.
 # Uses the current final Kobo tool variables as primary inputs:
@@ -537,9 +537,9 @@ cat("\n")
 
 # By default this matches the Shiny app folder supplied with this script. If your Shiny app folder
 # has another name/location, set path_shiny_tracker_folder before running this script, for example:
-# path_shiny_tracker_folder <- "path/to/MSNA2026_Uganda_Field_Tracker_Shiny_cached"
+# path_shiny_tracker_folder <- "path/to/MSNA2026_Mozambique_Field_Tracker_Shiny_cached"
 if (!exists("path_shiny_tracker_folder") || is.na(path_shiny_tracker_folder) || path_shiny_tracker_folder == "") {
-  path_shiny_tracker_folder <- "MSNA2026_Uganda_Field_Tracker_Shiny_cached"
+  path_shiny_tracker_folder <- "MSNA2026_Mozambique_Field_Tracker_Shiny_cached"
 }
 
 path_shiny_tracker_cache <- file.path(path_shiny_tracker_folder, "data_cache")

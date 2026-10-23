@@ -1,8 +1,8 @@
 # Mozambique MSNA 2026 data cleaning
 
-The original `R-scripts/Master cleaning script.R` is an Uganda workflow. Its trackers, logical-check files, paths and sector assumptions are not directly interchangeable with the Mozambique survey. Those scripts are retained as reference.
+The original `R-scripts/Master cleaning script.R` is a legacy workflow from another mission. Its trackers, logical-check files, paths and sector assumptions are not directly interchangeable with the Mozambique survey. Those scripts are retained as reference.
 
-Use the independent Mozambique entry point below. It uses the attached Mozambique XLSForm at runtime and does not require the Uganda logical-check workbook, `cleaningtools`, Kobo credentials, or the public-health report environment.
+Use the independent Mozambique entry point below. It uses the attached Mozambique XLSForm at runtime and does not require external logical-check workbooks, `cleaningtools`, Kobo credentials, or the public-health report environment.
 
 ## Run in RStudio
 

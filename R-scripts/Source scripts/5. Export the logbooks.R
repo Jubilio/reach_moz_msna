@@ -4,7 +4,7 @@ all_dfs_names_before <- Filter(function(x) is(x, "data.frame"), mget(ls())) |> n
 all_lists_names_before <- Filter(function(x) is(x, "list"), mget(ls())) |> names()
 
 # --------------------------------------------------------------------------------------------------
-# 5. EXPORT THE LOGBOOKS - MSNA 2026 UGANDA
+# 5. EXPORT THE LOGBOOKS - MSNA 2026 Mozambique
 # --------------------------------------------------------------------------------------------------
 # Purpose:
 #   Export one cleaning log workbook for each district/admin2.
@@ -29,7 +29,7 @@ all_lists_names_before <- Filter(function(x) is(x, "list"), mget(ls())) |> names
 #       admin3_setlement, admin4, hoh_type, parent_uuid, repeat_index.
 # --------------------------------------------------------------------------------------------------
 
-print_step("5. Exporting district-specific MSNA 2026 Uganda cleaning logbooks using cleaningtools structure")
+print_step("5. Exporting district-specific MSNA 2026 Mozambique cleaning logbooks using cleaningtools structure")
 
 # --------------------------------------------------------------------------------------------------
 # 0. Safety checks
@@ -1138,7 +1138,7 @@ for (current_district in district_values) {
   district_file <- file.path(
     current_district_dir,
     paste0(
-      "Cleaning_log_MSNA2026_Uganda_",
+      "Cleaning_log_MSNA2026_Mozambique_",
       current_district_safe,
       "_",
       export_time,

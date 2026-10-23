@@ -27,7 +27,7 @@ dir.create(output_path, showWarnings = FALSE, recursive = TRUE)
 
 ##### loading the kampala cleaning log 
 cleaning_log <- read_excel(
-  "inputs/Cleaning_log_MSNA2026_Uganda_kampala.xlsx",
+  "inputs/Cleaning_log_MSNA2026_Mozambique_kampala.xlsx",
   sheet = "cleaning_log"
 )
 

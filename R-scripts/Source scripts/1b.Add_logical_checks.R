@@ -1,7 +1,7 @@
 cat("\014")
 
 # =================================================================================================
-# REACH MSNA 2026 Uganda - 1b. Add new logical checks to the logical checks workbook
+# REACH MSNA 2026 Mozambique - 1b. Add new logical checks to the logical checks workbook
 # -------------------------------------------------------------------------------------------------
 # Purpose:
 #   Append additional logical checks to the existing checks workbook without modifying or
@@ -21,7 +21,7 @@ cat("\014")
 # =================================================================================================
 
 if (!exists("path_checks")) {
-  path_checks <- "inputs/REACH_MSNA2026_uganda_logical_checks.xlsx"
+  path_checks <- "inputs/logical_checks.xlsx"
 }
 
 required_for_checks <- c("dplyr", "tibble", "readxl", "openxlsx")
@@ -131,7 +131,7 @@ new_hh_checks <- tibble::tribble(
   "hlp_occupancy, snfi_fds_sleeping_issue, snfi_essential_items_missing",
 
   "household_level",  "check_73",
-  "Household has more than 10 people but zero children under 18 are reported. This is demographically unusual for Uganda. Please verify the household composition.",
+  "Household has more than 10 people but zero children under 18 are reported. This is demographically unusual for Mozambique. Please verify the household composition.",
   "!is.na(suppressWarnings(as.numeric(hh_size))) & suppressWarnings(as.numeric(hh_size)) > 10 & !is.na(suppressWarnings(as.numeric(ind_age_below18_n))) & suppressWarnings(as.numeric(ind_age_below18_n)) == 0",
   "hh_size, ind_age_below18_n, ind_age_above18_n",
 
@@ -350,7 +350,7 @@ backup_dir  <- "outputs"
 if (!dir.exists(backup_dir)) dir.create(backup_dir, recursive = TRUE)
 backup_path <- file.path(
   backup_dir,
-  paste0("REACH_MSNA2026_uganda_logical_checks_backup_", format(Sys.Date(), "%Y-%m-%d"), ".xlsx")
+  paste0("logical_checks_backup_", format(Sys.Date(), "%Y-%m-%d"), ".xlsx")
 )
 
 if (!file.exists(backup_path)) {

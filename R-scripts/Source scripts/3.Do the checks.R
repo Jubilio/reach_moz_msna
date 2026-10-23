@@ -1,7 +1,7 @@
 cat("\014")
 
 # =================================================================================================
-# REACH MSNA 2026 Uganda - 3. Do the checks
+# REACH MSNA 2026 Mozambique - 3. Do the checks
 # Template-structured version covering all final Kobo export sheets
 # -------------------------------------------------------------------------------------------------
 # This script follows the same broad cleaningtools workflow as the template:

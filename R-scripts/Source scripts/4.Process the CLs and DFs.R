@@ -4,7 +4,7 @@ all_dfs_names_before <- Filter(function(x) is(x, "data.frame"), mget(ls())) |> n
 all_lists_names_before <- Filter(function(x) is(x, "list"), mget(ls())) |> names()
 
 # =================================================================================================
-# 4. Process the cleaning logs and dataframes - MSNA 2026 Uganda
+# 4. Process the cleaning logs and dataframes - MSNA 2026 Mozambique
 # -------------------------------------------------------------------------------------------------
 # Purpose:
 #   - Take the combined cleaning log created in "3.Do the checks.R"

@@ -1,5 +1,5 @@
 # =================================================================================================
-# REACH MSNA 2026 Uganda - Data cleaning helper functions
+# REACH MSNA 2026 Mozambique - Data cleaning helper functions
 # Updated for current Kobo export structure: Submissions + roster/edu/health/nutrition/child protection repeats
 # =================================================================================================
 
