@@ -2,3 +2,10 @@
 .Rhistory
 .RData
 .Ruserdata
+
+# Local Mozambique survey files and all cleaning outputs
+/inputs/*.xlsx
+/inputs/feedback/
+/outputs/
+/upload/
+*.rds
