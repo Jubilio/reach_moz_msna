@@ -1,0 +1,953 @@
+---
+title: "UGA MSNA 2026 - Field Data Collection Tracker"
+author: "REACH"
+output: 
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = paste0(dirname(inputFile), '/msna_field_data_collection_tracker_', format(Sys.Date(), '%Y_%m_%d'),'.html'), envir = parent.frame()) })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+# --------------------------------------------------------------------------------------------------
+# Packages
+# --------------------------------------------------------------------------------------------------
+library(tidyverse)
+library(lubridate)
+library(glue)
+library(leaflet)
+library(DT)
+library(htmltools)
+library(readr)
+library(readxl)
+library(janitor)
+library(stringr)
+
+# --------------------------------------------------------------------------------------------------
+# Helper functions
+# --------------------------------------------------------------------------------------------------
+
+`%||%` <- function(x, y) {
+  if (is.null(x)) y else x
+}
+
+first_existing_col <- function(df, candidates) {
+  hit <- candidates[candidates %in% names(df)]
+  if (length(hit) == 0) NA_character_ else hit[[1]]
+}
+
+pull_first_existing <- function(df, candidates, default = NA_character_) {
+  hit <- first_existing_col(df, candidates)
+  if (is.na(hit)) {
+    rep(default, nrow(df))
+  } else {
+    df[[hit]]
+  }
+}
+
+clean_location_code <- function(x) {
+  x %>%
+    as.character() %>%
+    str_trim() %>%
+    str_to_lower() %>%
+    str_replace_all("[[:space:]]+", "_") %>%
+    str_replace_all("[^a-z0-9_]+", "_") %>%
+    str_replace_all("_+", "_") %>%
+    str_replace_all("^_|_$", "")
+}
+
+# Collapse all refugee settlement/site codes recorded in Adjumani district to one tracker settlement.
+# The Kobo tool stores individual Adjumani sites as codes such as adjumani_agojo,
+# adjumani_ayilo_i, adjumani_nyumanzi, adjumani_pagirinya, etc., while the approved
+# sampling target is for Adjumani settlement as a whole.
+standardise_settlement_for_tracker <- function(settlement, district = NA_character_) {
+  settlement_chr <- as.character(settlement)
+  district_key <- clean_location_code(district)
+  settlement_key <- clean_location_code(settlement_chr)
+
+  is_adjumani_settlement <-
+    !is.na(district_key) & district_key == "adjumani" &
+    !is.na(settlement_key) & settlement_key != ""
+
+  settlement_chr[is_adjumani_settlement] <- "adjumani"
+  settlement_chr
+}
+
+parse_datetime_safe <- function(x) {
+  if (inherits(x, "POSIXct") || inherits(x, "POSIXt")) return(x)
+  if (inherits(x, "Date")) return(as.POSIXct(x, tz = "Africa/Kampala"))
+
+  x_chr <- as.character(x)
+  x_chr <- stringr::str_trim(x_chr)
+  x_chr[x_chr == ""] <- NA_character_
+  x_chr <- stringr::str_replace_all(x_chr, "T", " ")
+  x_chr <- stringr::str_replace(x_chr, "Z$", "+0000")
+
+  suppressWarnings(
+    parse_date_time(
+      x_chr,
+      orders = c(
+        "ymd HMS z", "ymd HM z", "ymd HMS", "ymd HM", "ymd",
+        "dmy HMS z", "dmy HM z", "dmy HMS", "dmy HM", "dmy",
+        "mdy HMS z", "mdy HM z", "mdy HMS", "mdy HM", "mdy",
+        "Ymd HMS z", "Ymd HM z", "Ymd HMS", "Ymd HM"
+      ),
+      tz = "Africa/Kampala"
+    )
+  )
+}
+
+safe_date <- function(x) {
+  out <- suppressWarnings(as_date(parse_datetime_safe(x)))
+  if (all(is.na(out))) {
+    out <- suppressWarnings(as_date(x))
+  }
+  out
+}
+
+parse_duration_to_minutes <- function(x) {
+  if (length(x) == 0) return(numeric())
+
+  if (inherits(x, "difftime")) {
+    return(as.numeric(lubridate::time_length(x, unit = "min")))
+  }
+
+  x_chr <- as.character(x)
+  x_chr <- stringr::str_trim(x_chr)
+  x_chr[x_chr == ""] <- NA_character_
+
+  out <- suppressWarnings(as.numeric(x_chr))
+
+  # Handle durations stored as HH:MM:SS or MM:SS.
+  hms_like <- !is.na(x_chr) & stringr::str_detect(x_chr, "^[0-9]+:[0-9]{1,2}(:[0-9]{1,2})?$")
+  if (any(hms_like, na.rm = TRUE)) {
+    hms_parts <- stringr::str_split(x_chr[hms_like], ":", simplify = FALSE)
+    out[hms_like] <- vapply(hms_parts, function(z) {
+      z <- suppressWarnings(as.numeric(z))
+      if (length(z) == 3) {
+        z[1] * 60 + z[2] + z[3] / 60
+      } else if (length(z) == 2) {
+        z[1] + z[2] / 60
+      } else {
+        NA_real_
+      }
+    }, numeric(1))
+  }
+
+  out
+}
+
+clean_survey_duration_minutes <- function(x) {
+  x <- suppressWarnings(as.numeric(x))
+  x[!is.finite(x)] <- NA_real_
+  # Remove impossible or non-useful durations for average survey-time reporting.
+  x[x <= 0 | x > 1440] <- NA_real_
+  x
+}
+
+mean_survey_time_minutes <- function(x) {
+  x <- clean_survey_duration_minutes(x)
+  if (length(x) == 0 || all(is.na(x))) return(NA_real_)
+  mean(x, na.rm = TRUE)
+}
+
+format_survey_time_minutes <- function(x) {
+  x <- mean_survey_time_minutes(x)
+  if (is.na(x)) {
+    "Not available"
+  } else {
+    as.character(round(x, 0))
+  }
+}
+
+read_optional_csv <- function(paths) {
+  existing <- paths[file.exists(paths)]
+  if (length(existing) == 0) {
+    return(tibble())
+  }
+  readr::read_csv(existing[[1]], show_col_types = FALSE) %>%
+    janitor::clean_names()
+}
+
+safe_dt <- function(x, page_length = 15, filter = "none") {
+  x <- as_tibble(x)
+  if (nrow(x) == 0 && ncol(x) == 0) {
+    x <- tibble(message = "No records available")
+  }
+  DT::datatable(
+    x,
+    rownames = FALSE,
+    filter = filter,
+    options = list(
+      pageLength = page_length,
+      autoWidth = TRUE,
+      initComplete = JS(
+        "function(settings, json) {",
+        "$(this.api().table().header()).css({'background-color': '#333', 'color': '#fff'});",
+        "}"
+      )
+    )
+  )
+}
+
+dt_set_options <- function(x) {
+  DT::datatable(
+    x,
+    options = list(
+      autoWidth = FALSE,
+      dom = "t",
+      list(list(width = "20%", targets = list(1, 2, 3, 4, 5)))
+    )
+  )
+}
+
+dt_with_modified_options <- function(x) {
+  safe_dt(x, page_length = 15)
+}
+
+dt_options_fewcols <- function(x) {
+  safe_dt(x, page_length = 10)
+}
+
+dt_enum_performance_options <- function(x) {
+  x <- as_tibble(x)
+  if (nrow(x) == 0 && ncol(x) == 0) {
+    x <- tibble(message = "No records available")
+  }
+  DT::datatable(
+    x,
+    rownames = FALSE,
+    filter = "top",
+    options = list(
+      columnDefs = list(list(className = "dt-center", targets = list(1, 2))),
+      pageLength = 50,
+      initComplete = JS(
+        "function(settings, json) {",
+        "$(this.api().table().header()).css({'background-color': '#333', 'color': '#fff'});",
+        "}"
+      ),
+      order = list(list(1, "desc"), list(0, "asc"), list(3, "desc"))
+    )
+  )
+}
+
+standardise_tracker_main_data <- function(df) {
+  
+  if (is.null(df) || !is.data.frame(df) || nrow(df) == 0) {
+    return(tibble())
+  }
+  
+  df <- as_tibble(df)
+  
+  uuid_col <- first_existing_col(
+    df,
+    c("uuid", "_uuid", "_id", "instance_name", "_submission__id", "_submission_id")
+  )
+  
+  start_col <- first_existing_col(
+    df,
+    c("start", "start_time", "begin_time", "_start", "submission_time", "_submission_time")
+  )
+  
+  end_col <- first_existing_col(
+    df,
+    c("end", "end_time", "stop_time", "_end", "submission_time", "_submission_time")
+  )
+  
+  date_col <- first_existing_col(
+    df,
+    c("today", "todays_date", "start_date", "survey_date", "submission_time", "_submission_time", "start")
+  )
+  
+  latitude_col <- first_existing_col(
+    df,
+    c(
+      "latitude", "lat",
+      "_geopoint_latitude", "geopoint_latitude",
+      "gps_latitude", "_gps_latitude",
+      "location_latitude", "coordinates_latitude"
+    )
+  )
+  
+  longitude_col <- first_existing_col(
+    df,
+    c(
+      "longitude", "lon", "lng",
+      "_geopoint_longitude", "geopoint_longitude",
+      "gps_longitude", "_gps_longitude",
+      "location_longitude", "coordinates_longitude"
+    )
+  )
+  
+  out <- df %>%
+    mutate(
+      uuid = if (!is.na(uuid_col)) as.character(.data[[uuid_col]]) else as.character(row_number()),
+      district = as.character(pull_first_existing(., c("admin2", "district", "district_name"))),
+      settlement = as.character(pull_first_existing(., c("admin3_setlement", "settlement", "refugee_settlement"))),
+      sub_county_division = as.character(pull_first_existing(., c("admin3", "sub_county_division", "sub_county", "division"))),
+      zone = as.character(pull_first_existing(., c("admin4", "refugee_settlement_zone", "settlement_zone", "zone"))),
+      hoh_type = as.character(pull_first_existing(., c("hoh_type", "status", "population_group"))),
+      resp_gender = as.character(pull_first_existing(., c("resp_gender", "respondent_gender", "gender"))),
+      resp_age = suppressWarnings(as.numeric(pull_first_existing(., c("resp_age", "respondent_age")))),
+      hh_size = suppressWarnings(as.numeric(pull_first_existing(., c("hh_size", "household_size")))),
+      enumerator_id = as.character(pull_first_existing(., c("enum_id", "enumerator_id", "enumerator", "username", "_submitted_by"))),
+      enum_gender = as.character(pull_first_existing(., c("enum_gender", "enumerator_gender"))),
+      point_number = as.character(pull_first_existing(., c("point_number", "pt_num", "sample_point", "cluster_id"))),
+      start_time = if (!is.na(start_col)) parse_datetime_safe(.data[[start_col]]) else as.POSIXct(NA),
+      end_time = if (!is.na(end_col)) parse_datetime_safe(.data[[end_col]]) else as.POSIXct(NA),
+      start_date = if (!is.na(date_col)) safe_date(.data[[date_col]]) else safe_date(start_time),
+      latitude = if (!is.na(latitude_col)) suppressWarnings(as.numeric(.data[[latitude_col]])) else NA_real_,
+      longitude = if (!is.na(longitude_col)) suppressWarnings(as.numeric(.data[[longitude_col]])) else NA_real_
+    ) %>%
+    mutate(
+      start_date = if_else(is.na(start_date), as_date(start_time), start_date),
+      population_group = case_when(
+        str_detect(str_to_lower(hoh_type), "refugee") ~ "refugee",
+        str_detect(str_to_lower(hoh_type), "host") ~ "host_community",
+        TRUE ~ hoh_type
+      ),
+      # The sampling frame treats all Adjumani refugee sites as one settlement target.
+      settlement = standardise_settlement_for_tracker(settlement, district),
+      district_key = clean_location_code(district),
+      settlement_key = clean_location_code(settlement),
+      sub_county_division_key = clean_location_code(sub_county_division)
+    )
+  
+  duration_col <- first_existing_col(
+    out,
+    c("duration_minutes", "int_survey_time_interval", "survey_time_minutes", "duration")
+  )
+
+  duration_from_column <- rep(NA_real_, nrow(out))
+  if (!is.na(duration_col)) {
+    duration_from_column <- parse_duration_to_minutes(out[[duration_col]])
+  }
+
+  duration_from_start_end <- ifelse(
+    !is.na(out$start_time) & !is.na(out$end_time),
+    lubridate::time_length(out$end_time - out$start_time, unit = "min"),
+    NA_real_
+  )
+
+  out <- out %>%
+    mutate(
+      int.survey_time_interval = dplyr::coalesce(duration_from_column, duration_from_start_end),
+      int.survey_time_interval = clean_survey_duration_minutes(int.survey_time_interval),
+      int.survey_time_interval = ceiling(int.survey_time_interval)
+    )
+  
+  out
+}
+
+standardise_tracker_cleaning_log <- function(cl, support_data) {
+  
+  if (is.null(cl)) {
+    cl <- tibble()
+  }
+  
+  if (is.list(cl) && !is.data.frame(cl) && "cleaning_log" %in% names(cl)) {
+    cl <- cl$cleaning_log
+  }
+  
+  if (!is.data.frame(cl) || nrow(cl) == 0) {
+    cl <- tibble(
+      dataset = character(),
+      uuid = character(),
+      parent_uuid = character(),
+      repeat_index = character(),
+      question = character(),
+      old_value = character(),
+      new_value = character(),
+      change_type = character(),
+      issue = character(),
+      check_id = character()
+    )
+  }
+  
+  cl <- as_tibble(cl) %>%
+    janitor::clean_names()
+  
+  required <- c(
+    "dataset", "uuid", "parent_uuid", "repeat_index", "question",
+    "old_value", "new_value", "change_type", "issue", "check_id",
+    "check_to_perform", "columns_to_clean", "notes"
+  )
+  
+  for (cc in setdiff(required, names(cl))) {
+    cl[[cc]] <- NA_character_
+  }
+  
+  support <- support_data %>%
+    select(
+      uuid,
+      hoh_type_support = hoh_type,
+      population_group_support = population_group,
+      district_support = district,
+      settlement_support = settlement,
+      sub_county_division_support = sub_county_division,
+      zone_support = zone,
+      point_number_support = point_number,
+      latitude_support = latitude,
+      longitude_support = longitude,
+      enumerator_id_support = enumerator_id,
+      start_time_support = start_time,
+      start_date_support = start_date
+    )
+  
+  cl %>%
+    mutate(
+      uuid = as.character(uuid),
+      parent_uuid = as.character(parent_uuid),
+      question = str_remove(as.character(question), "_converted$"),
+      columns_to_clean = str_remove(as.character(columns_to_clean), "_converted$"),
+      change_type = if_else(is.na(change_type) | change_type == "", "no_action", as.character(change_type))
+    ) %>%
+    left_join(support, by = "uuid") %>%
+    mutate(
+      district = as.character(pull_first_existing(., c("admin2", "district", "district_name", "district_support"))),
+      settlement = as.character(pull_first_existing(., c("admin3_setlement", "settlement", "refugee_settlement", "settlement_support"))),
+      sub_county_division = as.character(pull_first_existing(., c("admin3", "sub_county_division", "sub_county_division_support"))),
+      zone = as.character(pull_first_existing(., c("admin4", "zone", "zone_support"))),
+      hoh_type = as.character(pull_first_existing(., c("hoh_type", "hoh_type_support"))),
+      population_group = as.character(pull_first_existing(., c("population_group", "population_group_support"))),
+      point_number = as.character(pull_first_existing(., c("point_number", "point_number_support"))),
+      latitude = suppressWarnings(as.numeric(pull_first_existing(., c("latitude", "latitude_support")))),
+      longitude = suppressWarnings(as.numeric(pull_first_existing(., c("longitude", "longitude_support")))),
+      enumerator_id = as.character(pull_first_existing(., c("enum_id", "enumerator_id", "enumerator_id_support", "username", "_submitted_by"))),
+      start_time = parse_datetime_safe(pull_first_existing(., c("start_time", "start_time_support", "_submission_time", "submission_time"))),
+      start_date = safe_date(pull_first_existing(., c("start_date", "start_date_support", "today", "_submission_time", "submission_time"))),
+      population_group = case_when(
+        str_detect(str_to_lower(hoh_type), "refugee") ~ "refugee",
+        str_detect(str_to_lower(hoh_type), "host") ~ "host_community",
+        TRUE ~ population_group
+      ),
+      # Use the same Adjumani roll-up in cleaning-log deletion counts and issue summaries.
+      settlement = standardise_settlement_for_tracker(settlement, district),
+      district_key = clean_location_code(district),
+      settlement_key = clean_location_code(settlement),
+      sub_county_division_key = clean_location_code(sub_county_division)
+    )
+}
+
+apply_change_responses <- function(df, change_log) {
+  
+  if (!is.data.frame(df) || nrow(df) == 0 || !is.data.frame(change_log) || nrow(change_log) == 0) {
+    return(df)
+  }
+  
+  changes <- change_log %>%
+    filter(
+      change_type == "change_response",
+      !is.na(new_value),
+      !is.na(uuid),
+      !is.na(question),
+      !str_detect(question, "\\/")
+    ) %>%
+    filter(question %in% names(df)) %>%
+    select(uuid, question, new_value)
+  
+  if (nrow(changes) == 0) {
+    return(df)
+  }
+  
+  out <- df
+  
+  for (ii in seq_len(nrow(changes))) {
+    
+    current_uuid <- as.character(changes$uuid[[ii]])
+    current_question <- as.character(changes$question[[ii]])
+    current_value <- changes$new_value[[ii]]
+    
+    row_hit <- which(as.character(out$uuid) == current_uuid)
+    
+    if (length(row_hit) == 0 || !current_question %in% names(out)) {
+      next
+    }
+    
+    if (is.numeric(out[[current_question]])) {
+      out[[current_question]][row_hit] <- suppressWarnings(as.numeric(current_value))
+    } else if (inherits(out[[current_question]], "Date")) {
+      out[[current_question]][row_hit] <- suppressWarnings(as_date(current_value))
+    } else if (inherits(out[[current_question]], "POSIXct") || inherits(out[[current_question]], "POSIXt")) {
+      out[[current_question]][row_hit] <- parse_datetime_safe(current_value)
+    } else {
+      out[[current_question]][row_hit] <- as.character(current_value)
+    }
+  }
+  
+  out
+}
+
+prepare_refugee_samples <- function(sample_df, data_df) {
+  
+  if (is.data.frame(sample_df) && nrow(sample_df) > 0) {
+    
+    settlement_col <- first_existing_col(sample_df, c("settlement", "refugee_settlement", "admin3_setlement"))
+    district_col <- first_existing_col(sample_df, c("district", "district_name", "admin2"))
+    with_buffer_col <- first_existing_col(sample_df, c("sample_size_with_buffer", "samples_with_buffer", "required_samples_with_buffer"))
+    without_buffer_col <- first_existing_col(sample_df, c("sample_size_without_buffer", "samples_without_buffer", "required_samples_without_buffer"))
+    
+    out <- sample_df %>%
+      mutate(
+        district = if (!is.na(district_col)) as.character(.data[[district_col]]) else NA_character_,
+        settlement = if (!is.na(settlement_col)) as.character(.data[[settlement_col]]) else NA_character_,
+        # Keep approved refugee targets on the same settlement coding used for completed surveys.
+        settlement = standardise_settlement_for_tracker(settlement, district),
+        settlement_key = clean_location_code(settlement),
+        required_samples_with_buffer = if (!is.na(with_buffer_col)) suppressWarnings(as.numeric(.data[[with_buffer_col]])) else NA_real_,
+        samples_without_buffer = if (!is.na(without_buffer_col)) suppressWarnings(as.numeric(.data[[without_buffer_col]])) else NA_real_
+      ) %>%
+      group_by(district, settlement, settlement_key) %>%
+      summarise(
+        required_samples_with_buffer = sum(required_samples_with_buffer, na.rm = TRUE),
+        samples_without_buffer = sum(samples_without_buffer, na.rm = TRUE),
+        .groups = "drop"
+      )
+    
+    return(out)
+  }
+  
+  data_df %>%
+    filter(population_group == "refugee") %>%
+    distinct(district, settlement, settlement_key) %>%
+    mutate(
+      required_samples_with_buffer = NA_real_,
+      samples_without_buffer = NA_real_
+    )
+}
+
+prepare_host_samples <- function(sample_df, data_df) {
+  
+  # Host-community targets in the Word document are district-level targets.
+  # We therefore prepare and join host targets by district_key, not by sub-county.
+  if (is.data.frame(sample_df) && nrow(sample_df) > 0) {
+    
+    district_col <- first_existing_col(sample_df, c("district", "district_name", "admin2"))
+    with_buffer_col <- first_existing_col(sample_df, c("sample_size_with_buffer", "samples_with_buffer", "required_samples_with_buffer"))
+    without_buffer_col <- first_existing_col(sample_df, c("sample_size_without_buffer", "samples_without_buffer", "required_samples_without_buffer"))
+    
+    out <- sample_df %>%
+      mutate(
+        district = if (!is.na(district_col)) as.character(.data[[district_col]]) else NA_character_,
+        district_key = clean_location_code(district),
+        samples_with_buffer = if (!is.na(with_buffer_col)) suppressWarnings(as.numeric(.data[[with_buffer_col]])) else NA_real_,
+        samples_without_buffer = if (!is.na(without_buffer_col)) suppressWarnings(as.numeric(.data[[without_buffer_col]])) else NA_real_
+      ) %>%
+      filter(!is.na(district_key), district_key != "") %>%
+      group_by(district, district_key) %>%
+      summarise(
+        samples_with_buffer = sum(samples_with_buffer, na.rm = TRUE),
+        samples_without_buffer = sum(samples_without_buffer, na.rm = TRUE),
+        .groups = "drop"
+      )
+    
+    return(out)
+  }
+  
+  data_df %>%
+    filter(population_group == "host_community") %>%
+    distinct(district, district_key) %>%
+    mutate(
+      samples_with_buffer = NA_real_,
+      samples_without_buffer = NA_real_
+    )
+}
+
+ensure_gender_columns <- function(df) {
+  
+  gender_cols <- c("male", "female", "other", "dnk", "pnta")
+  
+  for (cc in gender_cols) {
+    if (!cc %in% names(df)) {
+      df[[cc]] <- 0L
+    }
+  }
+  
+  df %>%
+    mutate(
+      total_known_gender = male + female,
+      `male(%)` = if_else(total_known_gender > 0, round(male / total_known_gender * 100, 0), NA_real_),
+      `female(%)` = if_else(total_known_gender > 0, round(female / total_known_gender * 100, 0), NA_real_)
+    ) %>%
+    select(-total_known_gender)
+}
+
+# --------------------------------------------------------------------------------------------------
+# Inputs from the cleaning pipeline
+# --------------------------------------------------------------------------------------------------
+
+# Final sampling targets from: "sampling targets for settlement and host community.docx".
+# Only the sample target columns are hard-coded here so the tracker uses the approved values.
+# Refugee targets are settlement-level. Host-community targets are district-level.
+
+df_refugee_samples <- tibble::tribble(
+  ~district,       ~settlement,    ~samples_without_buffer, ~required_samples_with_buffer,
+  "Adjumani",     "Adjumani",      97,                      107,
+  "Yumbe",        "Bidibidi",      96,                      106,
+  "Terego",       "Imvepi",        96,                      106,
+  "Kiryandongo",  "Kiryandongo",   96,                      106,
+  "Kyegegwa",     "Kyaka II",      96,                      106,
+  "Kikuube",      "Kyangwali",     96,                      106,
+  "Koboko",       "Lobule",        95,                      105,
+  "Isingiro",     "Nakivale",      97,                      107,
+  "Isingiro",     "Oruchinga",     95,                      105,
+  "Lamwo",        "Palabek",       96,                      106,
+  "Obongi",       "Palorinya",     96,                      106,
+  "Madi Okollo",  "Rhino Camp",    96,                      106,
+  "Kamwenge",     "Rwamwanja",     96,                      106,
+  "Kampala",      "Kampala",       96,                      106
+)
+
+df_host_samples <- tibble::tribble(
+  ~district,       ~samples_without_buffer, ~samples_with_buffer,
+  "Adjumani",     76,                       150,
+  "Madi Okollo",  79,                       150,
+  "Obongi",       76,                       150,
+  "Terego",       79,                       150,
+  "Yumbe",        79,                       150,
+  "Koboko",       79,                       150,
+  "Lamwo",        79,                       150,
+  "Isingiro",     79,                       150,
+  "Kamwenge",     79,                       150,
+  "Kyegegwa",     79,                       150,
+  "Kiryandongo",  79,                       150,
+  "Kampala",      79,                       150
+)
+
+if (exists("raw_data_list") && is.list(raw_data_list) && "Submissions" %in% names(raw_data_list)) {
+  df_tool_data_raw <- raw_data_list$Submissions
+} else if (exists("data_hh_main") && is.data.frame(data_hh_main)) {
+  df_tool_data_raw <- data_hh_main
+} else if (exists("combined_log") && is.list(combined_log) && "checked_dataset" %in% names(combined_log)) {
+  df_tool_data_raw <- combined_log$checked_dataset
+} else if (exists("path_data") && file.exists(path_data)) {
+  export_sheets <- readxl::excel_sheets(path_data)
+  main_sheet <- if ("Submissions" %in% export_sheets) "Submissions" else export_sheets[[1]]
+  df_tool_data_raw <- readxl::read_xlsx(path_data, sheet = main_sheet, .name_repair = "unique_quiet")
+  if (exists("standardise_column_names", mode = "function")) {
+    df_tool_data_raw <- standardise_column_names(df_tool_data_raw)
+  }
+} else {
+  stop("No main MSNA 2026 dataset was found. Run scripts 1-4 before rendering this RMarkdown report.", call. = FALSE)
+}
+
+df_tool_data <- standardise_tracker_main_data(df_tool_data_raw)
+
+df_days_for_data_collection <- df_tool_data %>%
+  filter(!is.na(start_date)) %>%
+  distinct(start_date) %>%
+  arrange(start_date) %>%
+  pull(start_date)
+
+if (length(df_days_for_data_collection) == 0) {
+  df_days_for_data_collection <- Sys.Date()
+}
+
+df_data_support_cl_log <- df_tool_data %>%
+  select(
+    uuid,
+    hoh_type,
+    population_group,
+    district,
+    settlement,
+    sub_county_division,
+    zone,
+    point_number,
+    latitude,
+    longitude,
+    enumerator_id,
+    start_time,
+    start_date
+  )
+
+if (exists("combined_log") && is.list(combined_log) && "cleaning_log" %in% names(combined_log)) {
+  df_cl_log_raw <- combined_log$cleaning_log
+} else if (exists("cleaning_log_template") && is.data.frame(cleaning_log_template)) {
+  df_cl_log_raw <- cleaning_log_template
+} else if (exists("cleaning_log") && is.data.frame(cleaning_log)) {
+  df_cl_log_raw <- cleaning_log
+} else if (exists("combined_log_to_export") && is.data.frame(combined_log_to_export)) {
+  df_cl_log_raw <- combined_log_to_export
+} else {
+  df_cl_log_raw <- tibble()
+}
+
+df_cl_log <- standardise_tracker_cleaning_log(df_cl_log_raw, df_data_support_cl_log) %>%
+  filter(!str_detect(string = as.character(point_number), pattern = fixed("test", ignore_case = TRUE)))
+
+# updated tool data after applying reviewed change_response rows already available in the current cleaning log
+df_updated_tool_data <- apply_change_responses(df_tool_data, df_cl_log)
+
+# recompute derived reporting columns after possible changes
+df_updated_tool_data <- standardise_tracker_main_data(df_updated_tool_data)
+
+df_enum_performance <- df_updated_tool_data
+
+df_settlement_samples_required <- prepare_refugee_samples(df_refugee_samples, df_updated_tool_data)
+df_host_samples_required <- prepare_host_samples(df_host_samples, df_updated_tool_data)
+
+df_for_colnames <- df_settlement_samples_required %>%
+  select(district, settlement, settlement_key) %>%
+  distinct()
+
+df_for_host_colnames <- df_host_samples_required %>%
+  select(district, district_key) %>%
+  distinct()
+```
+
+## Summary on the surveys done
+
+>There are **`r nrow(df_updated_tool_data)`** total number of surveys done as of **`r df_days_for_data_collection[length(df_days_for_data_collection)]`**.
+
+>The average survey time for all the data is: **`r format_survey_time_minutes(df_enum_performance$int.survey_time_interval)`** Minutes
+
+### Settlements:  **`r df_updated_tool_data %>% filter(population_group == "refugee") %>% nrow()`** surveys
+
+```{r, echo = FALSE}
+df_refugee_samp_per_settlement <- df_settlement_samples_required %>%
+  group_by(district, settlement, settlement_key) %>%
+  summarise(
+    required_samples_with_buffer = sum(required_samples_with_buffer, na.rm = TRUE),
+    samples_without_buffer = sum(samples_without_buffer, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+df_cl_surveys_for_deletion_refugee <- df_cl_log %>%
+  filter(population_group == "refugee", change_type == "remove_survey") %>%
+  filter(!is.na(settlement_key), settlement_key != "") %>%
+  distinct(uuid, settlement_key) %>%
+  count(settlement_key, name = "surveys_for_deletion")
+
+df_refugee_completed <- df_updated_tool_data %>%
+  filter(population_group == "refugee") %>%
+  filter(!is.na(settlement_key), settlement_key != "") %>%
+  group_by(district, settlement, settlement_key) %>%
+  summarise(surveys_completed = n(), .groups = "drop")
+
+df_refugee_progress <- df_refugee_completed %>%
+  full_join(df_refugee_samp_per_settlement, by = "settlement_key", suffix = c("", "_sample")) %>%
+  mutate(
+    district = coalesce(district, district_sample),
+    settlement = coalesce(settlement, settlement_sample)
+  ) %>%
+  select(-any_of(c("district_sample", "settlement_sample"))) %>%
+  left_join(df_cl_surveys_for_deletion_refugee, by = "settlement_key") %>%
+  mutate(
+    surveys_completed = replace_na(surveys_completed, 0L),
+    surveys_for_deletion = replace_na(surveys_for_deletion, 0L),
+    surveys_after_deletion = surveys_completed - surveys_for_deletion,
+    remaining_surveys_with_buffer = required_samples_with_buffer - surveys_after_deletion,
+    remaining_surveys_no_buffer = samples_without_buffer - surveys_after_deletion
+  ) %>%
+  arrange(district, settlement) %>%
+  select(
+    district,
+    settlement,
+    surveys_completed,
+    surveys_for_deletion,
+    surveys_after_deletion,
+    required_samples_with_buffer,
+    samples_without_buffer,
+    remaining_surveys_with_buffer,
+    remaining_surveys_no_buffer
+  )
+
+df_refugee_progress %>%
+  dt_with_modified_options()
+```
+
+### Host community: **`r df_updated_tool_data %>% filter(population_group == "host_community") %>% nrow()`** surveys
+
+```{r, echo = FALSE}
+df_host_samp_per_district <- df_host_samples_required %>%
+  group_by(district, district_key) %>%
+  summarise(
+    samples_with_buffer = sum(samples_with_buffer, na.rm = TRUE),
+    samples_without_buffer = sum(samples_without_buffer, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+df_cl_surveys_for_deletion_host <- df_cl_log %>%
+  filter(population_group == "host_community", change_type == "remove_survey") %>%
+  mutate(district_key = clean_location_code(district)) %>%
+  filter(!is.na(district_key), district_key != "") %>%
+  distinct(uuid, district_key) %>%
+  count(district_key, name = "surveys_for_deletion")
+
+df_host_completed <- df_updated_tool_data %>%
+  filter(population_group == "host_community") %>%
+  filter(!is.na(district_key), district_key != "") %>%
+  group_by(district, district_key) %>%
+  summarise(surveys_completed = n(), .groups = "drop")
+
+df_host_progress <- df_host_completed %>%
+  full_join(df_host_samp_per_district, by = "district_key", suffix = c("", "_sample")) %>%
+  mutate(
+    district = coalesce(district, district_sample)
+  ) %>%
+  select(-any_of(c("district_sample"))) %>%
+  left_join(df_cl_surveys_for_deletion_host, by = "district_key") %>%
+  mutate(
+    surveys_completed = replace_na(surveys_completed, 0L),
+    surveys_for_deletion = replace_na(surveys_for_deletion, 0L),
+    surveys_after_deletion = surveys_completed - surveys_for_deletion,
+    remaining_surveys_with_buffer = samples_with_buffer - surveys_after_deletion,
+    remaining_surveys_no_buffer = samples_without_buffer - surveys_after_deletion
+  ) %>%
+  arrange(district) %>%
+  select(
+    district,
+    surveys_completed,
+    surveys_for_deletion,
+    surveys_after_deletion,
+    samples_with_buffer,
+    samples_without_buffer,
+    remaining_surveys_with_buffer,
+    remaining_surveys_no_buffer
+  )
+
+df_host_progress %>%
+  dt_with_modified_options()
+```
+
+### Gender disaggregation by respondent hoh_type
+
+# Refugees
+
+```{r, echo = FALSE}
+df_gender_disaggregation_refugee <- df_updated_tool_data %>%
+  filter(population_group == "refugee") %>%
+  mutate(resp_gender = clean_location_code(resp_gender)) %>%
+  group_by(settlement) %>%
+  count(resp_gender) %>%
+  pivot_wider(names_from = resp_gender, values_from = n) %>%
+  replace(is.na(.), 0) %>%
+  ensure_gender_columns()
+
+df_gender_disaggregation_refugee %>%
+  DT::datatable(rownames = FALSE)
+```
+
+# Host Community
+
+```{r, echo = FALSE}
+df_gender_disaggregation_host <- df_updated_tool_data %>%
+  filter(population_group == "host_community") %>%
+  mutate(resp_gender = clean_location_code(resp_gender)) %>%
+  group_by(sub_county_division) %>%
+  count(resp_gender) %>%
+  pivot_wider(names_from = resp_gender, values_from = n) %>%
+  replace(is.na(.), 0) %>%
+  ensure_gender_columns()
+
+df_gender_disaggregation_host %>%
+  DT::datatable(rownames = FALSE)
+```
+
+### Daily enumerator performance
+
+```{r, echo = FALSE}
+df_enum_performance %>%
+  filter(!is.na(start_date), !is.na(enumerator_id), enumerator_id != "") %>%
+  group_by(district, start_date, enumerator_id) %>%
+  summarise(
+    number_of_interviews_done = n(),
+    `average_survey_time(minutes)` = {
+      avg_time <- mean_survey_time_minutes(int.survey_time_interval)
+      ifelse(is.na(avg_time), NA_real_, round(avg_time, 0))
+    },
+    .groups = "drop"
+  ) %>%
+  dt_enum_performance_options()
+```
+
+## Looking into the cleaning log
+
+### Number of issues by enumerator
+
+```{r, echo = FALSE}
+df_cl_log %>%
+  filter(!is.na(enumerator_id), enumerator_id != "") %>%
+  group_by(district, enumerator_id) %>%
+  summarise(number_of_issues_by_enumerator_id = n(), .groups = "drop") %>%
+  arrange(desc(number_of_issues_by_enumerator_id)) %>%
+  dt_options_fewcols()
+```
+
+### Enumerators with surveys for deletion
+
+```{r, echo = FALSE}
+df_cl_log %>%
+  filter(change_type == "remove_survey") %>%
+  group_by(district, settlement, sub_county_division, enumerator_id) %>%
+  summarise(number_of_surveys_for_deletion_by_enumerator = n_distinct(uuid), .groups = "drop") %>%
+  arrange(desc(number_of_surveys_for_deletion_by_enumerator)) %>%
+  dt_options_fewcols()
+```
+
+### Map of surveys for deletion
+
+```{r, echo = FALSE, out.width="100%"}
+df_deletion_map <- df_cl_log %>%
+  filter(change_type == "remove_survey") %>%
+  filter(!is.na(latitude), !is.na(longitude)) %>%
+  group_by(uuid, hoh_type, population_group, sub_county_division, settlement, latitude, longitude) %>%
+  summarise(
+    start_time = paste(unique(na.omit(as.character(start_time))), collapse = " : "),
+    enumerator_id = paste(unique(na.omit(as.character(enumerator_id))), collapse = " : "),
+    district = paste(unique(na.omit(as.character(district))), collapse = " : "),
+    point_number = paste(unique(na.omit(as.character(point_number))), collapse = " : "),
+    change_type = paste(unique(na.omit(as.character(change_type))), collapse = " : "),
+    question = paste(unique(na.omit(as.character(question))), collapse = " : "),
+    old_value = paste(unique(na.omit(as.character(old_value))), collapse = " : "),
+    new_value = paste(unique(na.omit(as.character(new_value))), collapse = " : "),
+    issue = paste(unique(na.omit(as.character(issue))), collapse = " : "),
+    .groups = "drop"
+  ) %>%
+  unique() %>%
+  mutate(
+    int.hoh_type = ifelse(
+      population_group == "refugee",
+      glue("{population_group}_{settlement}"),
+      glue("{population_group}_{sub_county_division}")
+    )
+  )
+
+if (nrow(df_deletion_map) == 0) {
+  
+  tibble(message = "No surveys for deletion with valid latitude/longitude were found.") %>%
+    dt_options_fewcols()
+  
+} else {
+  
+  labels_pts <- sprintf(
+    "<strong>Population group and location: %s</strong><br/>
+      Point Number: <strong>%s</strong><br/>
+      Issue: <strong>%s</strong><br/>
+      Enumerator ID: <strong>%s</strong>",
+    df_deletion_map$int.hoh_type,
+    df_deletion_map$point_number,
+    df_deletion_map$issue,
+    df_deletion_map$enumerator_id
+  ) %>%
+    lapply(htmltools::HTML)
+  
+  leaflet(df_deletion_map) %>%
+    addTiles() %>%
+    addCircleMarkers(
+      ~longitude,
+      ~latitude,
+      popup = labels_pts,
+      radius = 10,
+      color = "red",
+      stroke = FALSE,
+      fillOpacity = 0.9,
+      label = labels_pts,
+      clusterOptions = markerClusterOptions()
+    )
+}
+```
