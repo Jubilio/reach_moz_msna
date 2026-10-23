@@ -1,12 +1,8 @@
 # =============================================================================
 # FSL Plausibility Report - Mozambique MSNA 2026
 # =============================================================================
-# Este script utiliza a base pré-processada gerada pelo pipeline de Moçambique:
+# Este script utiliza a base processada gerada pelo pipeline de Moçambique:
 #   R-scripts/moz/run.R
-# 
-# Ele carrega os dados com as variáveis já padronizadas, calcula os indicadores
-# FSL (rCSI, FCS, HHS, FCM Phase) com impactR4PHU e renderiza o relatório
-# HTML de qualidade e plausibilidade.
 # =============================================================================
 
 library(dplyr)
@@ -32,7 +28,7 @@ message("Carregando dados da pasta: ", latest_run)
 
 data.test <- read.csv(file.path(latest_run, "Submissions.csv"), check.names = FALSE, stringsAsFactors = FALSE)
 
-# Anexar colunas de frequência do HHS a partir do raw_snapshot (posições 151, 153, 155)
+# Anexar colunas de frequência do HHS a partir do raw_snapshot
 raw_snap <- readRDS(file.path(latest_run, "raw_snapshot.rds"))
 subm_raw <- raw_snap$Submissions
 
@@ -57,7 +53,37 @@ for (col in intersect(num_cols, names(data.test))) {
   data.test[[col]] <- suppressWarnings(as.numeric(data.test[[col]]))
 }
 
-# ---- 4. Cálculo dos Indicadores FSL -----------------------------------------
+# ---- 4. Recodificar LCSI de Moçambique para o formato do impactR4PHU -------
+# Códigos no formulário XLSForm de Moçambique (lista l_fsl_lcsi):
+#   30   = Sim (Yes)
+#   10   = Não, não tinha necessidade (No, had no need)
+#   20   = Não, já esgotei a estratégia (No, exhausted)
+#   9999 = Não aplicável (Not applicable)
+rec_lcsi <- function(x) {
+  x <- as.character(x)
+  dplyr::case_when(
+    x == "30"   ~ "yes",
+    x == "10"   ~ "no_had_no_need",
+    x == "20"   ~ "no_exhausted",
+    x == "9999" ~ "not_applicable",
+    TRUE        ~ "not_applicable"
+  )
+}
+
+data.test$fsl_lcsi_stress1 <- rec_lcsi(data.test$fsl_lcsi_send_family_members_elsewhere)
+data.test$fsl_lcsi_stress2 <- rec_lcsi(data.test$fsl_lcsi_sell_more_reproductive_animals)
+data.test$fsl_lcsi_stress3 <- "not_applicable"
+data.test$fsl_lcsi_stress4 <- "not_applicable"
+
+data.test$fsl_lcsi_crisis1 <- rec_lcsi(data.test$fsl_lcsi_reduce_expenses_on_health)
+data.test$fsl_lcsi_crisis2 <- "not_applicable"
+data.test$fsl_lcsi_crisis3 <- "not_applicable"
+
+data.test$fsl_lcsi_emergency1 <- "not_applicable"
+data.test$fsl_lcsi_emergency2 <- "not_applicable"
+data.test$fsl_lcsi_emergency3 <- "not_applicable"
+
+# ---- 5. Cálculo dos Indicadores FSL -----------------------------------------
 data.test2 <- data.test %>%
   dplyr::select(!ends_with("_recoded")) %>%
 
@@ -123,29 +149,9 @@ data.test2 <- data.test2 %>%
     hdds_categories_low        = "Low",
     hdds_categories_medium     = "Medium",
     hdds_categories_high       = "High"
-  )
+  ) %>%
 
-# -- LCSI (Livelihood Coping Strategies) --
-# Moçambique coletou 3 estratégias. Criamos colunas compatíveis para o Rmd:
-lcsi_required <- c(
-  paste0("fsl_lcsi_stress", 1:4),
-  paste0("fsl_lcsi_crisis", 1:3),
-  paste0("fsl_lcsi_emergency", 1:3)
-)
-moz_lcsi_map <- c(
-  fsl_lcsi_stress1 = "fsl_lcsi_send_family_members_elsewhere",
-  fsl_lcsi_stress2 = "fsl_lcsi_sell_more_reproductive_animals",
-  fsl_lcsi_crisis1 = "fsl_lcsi_reduce_expenses_on_health"
-)
-for (std_name in lcsi_required) {
-  if (std_name %in% names(moz_lcsi_map) && moz_lcsi_map[[std_name]] %in% names(data.test2)) {
-    data.test2[[std_name]] <- data.test2[[ moz_lcsi_map[[std_name]] ]]
-  } else if (!std_name %in% names(data.test2)) {
-    data.test2[[std_name]] <- "not_applicable"
-  }
-}
-
-data.test2 <- data.test2 %>%
+  # -- LCSI (Livelihood Coping Strategies) --
   impactR4PHU::add_lcsi(
     fsl_lcsi_stress1    = "fsl_lcsi_stress1",
     fsl_lcsi_stress2    = "fsl_lcsi_stress2",
@@ -201,7 +207,7 @@ data.test2 <- data.test2 %>%
     uuid                     = "uuid"
   )
 
-# ---- 5. Renderizar Relatórios HTML ------------------------------------------
+# ---- 6. Renderizar Relatórios HTML ------------------------------------------
 run_fsl_plaus_html_report <- function(
   .dataset = NULL,
   uuid_var = "uuid",
